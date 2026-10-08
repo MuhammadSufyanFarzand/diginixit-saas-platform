@@ -1,0 +1,1757 @@
+// DiginixIT Common JS
+
+// --- UUID GENERATOR ---
+function getUUID() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// Initialize Visitor and Session IDs
+if (typeof window !== 'undefined') {
+    if (!localStorage.getItem('visitor_id')) {
+        localStorage.setItem('visitor_id', getUUID());
+    }
+    if (!sessionStorage.getItem('session_id')) {
+        sessionStorage.setItem('session_id', getUUID());
+    }
+}
+
+// --- HTML ESCAPING UTILITY ---
+window.escapeHtml = function (unsafe) {
+    if (!unsafe) return "";
+    return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+};
+
+window.isSafeImageUrl = function (url) {
+    if (!url) return false;
+    try {
+        const parsed = new URL(url);
+        return ['https:'].includes(parsed.protocol);
+    } catch (e) {
+        return url.startsWith('/') && !url.toLowerCase().startsWith('/javascript:') && !url.toLowerCase().startsWith('/data:');
+    }
+};
+
+// --- DIGINIXIT DESIGN SYSTEM TOAST NOTIFICATIONS ---
+window.showToast = function (message, type = 'info', title = '', duration = 4500) {
+    if (typeof document === 'undefined') return;
+
+    let container = document.getElementById('ui-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'ui-toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    const variantClass = `ui-toast-${type}`;
+    toast.className = `ui-toast ${variantClass}`;
+
+    let iconSvg = '';
+    if (type === 'success') {
+        iconSvg = `<svg class="ui-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+    } else if (type === 'error') {
+        iconSvg = `<svg class="ui-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
+    } else if (type === 'warning') {
+        iconSvg = `<svg class="ui-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+    } else {
+        iconSvg = `<svg class="ui-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+    }
+
+    const defaultTitle = title || (type.charAt(0).toUpperCase() + type.slice(1));
+
+    toast.innerHTML = `
+        ${iconSvg}
+        <div class="ui-toast-content">
+            <h4 class="ui-toast-title">${window.escapeHtml(defaultTitle)}</h4>
+            <p class="ui-toast-message">${window.escapeHtml(message)}</p>
+        </div>
+        <button type="button" class="ui-toast-close" aria-label="Close notification" onclick="this.parentElement.remove()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    `;
+
+    container.appendChild(toast);
+
+    if (duration > 0) {
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.classList.add('ui-toast-closing');
+                setTimeout(() => toast.remove(), 260);
+            }
+        }, duration);
+    }
+};
+
+// Global Override of window.alert to standard design system Toast
+if (typeof window !== 'undefined') {
+    window.alert = function (message) {
+        if (!message) return;
+        const msgStr = String(message);
+        let type = 'info';
+        const lower = msgStr.toLowerCase();
+        if (lower.includes('fail') || lower.includes('error') || lower.includes('denied') || lower.includes('invalid') || lower.includes('expired')) {
+            type = 'error';
+        } else if (lower.includes('success') || lower.includes('welcome') || lower.includes('updated') || lower.includes('sent')) {
+            type = 'success';
+        } else if (lower.includes('warn') || lower.includes('too many') || lower.includes('wait') || lower.includes('required')) {
+            type = 'warning';
+        }
+        window.showToast(msgStr, type);
+    };
+}
+
+// --- PASSWORD EYE TOGGLE UTILITY ---
+window.initPasswordToggles = function () {
+    if (typeof document === 'undefined') return;
+
+    const passwordInputs = document.querySelectorAll('input[type="password"]');
+    passwordInputs.forEach(input => {
+        if (input.dataset.hasEyeToggle) return;
+        input.dataset.hasEyeToggle = "true";
+
+        const parent = input.parentElement;
+        if (!parent) return;
+
+        let wrap = parent;
+        if (!parent.classList.contains('ui-password-field-wrap')) {
+            wrap = document.createElement('div');
+            wrap.className = 'ui-password-field-wrap';
+            parent.insertBefore(wrap, input);
+            wrap.appendChild(input);
+        }
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'ui-password-toggle-btn';
+        toggleBtn.setAttribute('aria-label', 'Toggle password visibility');
+        toggleBtn.setAttribute('title', 'Show/Hide Password');
+        toggleBtn.innerHTML = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+
+        let visible = false;
+        toggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            visible = !visible;
+            input.type = visible ? 'text' : 'password';
+            if (visible) {
+                toggleBtn.innerHTML = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+            } else {
+                toggleBtn.innerHTML = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+            }
+        });
+
+        wrap.appendChild(toggleBtn);
+    });
+};
+
+// --- AUTOMATIC SUPABASE AUTH REDIRECTION & URL HASH PARSER ---
+window.handleAuthUrlRedirection = function () {
+    if (typeof window === 'undefined') return;
+
+    const hash = window.location.hash.substring(1);
+    const hashParams = new URLSearchParams(hash);
+    const queryParams = new URLSearchParams(window.location.search);
+
+    const type = hashParams.get('type') || queryParams.get('type');
+    const errorDesc = hashParams.get('error_description') || queryParams.get('error_description');
+
+    if (errorDesc) {
+        window.showToast(decodeURIComponent(errorDesc), 'error', 'Authentication Alert');
+        return;
+    }
+
+    const isAuthPage = /\/auth(\.html)?$/.test(window.location.pathname) || window.location.pathname.endsWith('auth.html');
+    const isProfilePage = /\/profile(\.html)?$/.test(window.location.pathname) || window.location.pathname.endsWith('profile.html');
+
+    if (type === 'recovery') {
+        if (!isAuthPage) {
+            window.location.href = 'auth.html?mode=reset' + window.location.hash;
+        }
+    } else if (type === 'signup' || type === 'email_confirmation') {
+        window.showToast("Email address verified successfully! You are logged in.", "success", "Email Verified");
+        if (isAuthPage) {
+            setTimeout(() => { window.location.href = 'profile.html'; }, 1200);
+        }
+    } else if (type === 'invite') {
+        if (!isAuthPage) {
+            window.location.href = 'auth.html?mode=invite' + window.location.hash;
+        }
+    } else if (type === 'magiclink') {
+        window.showToast("Successfully signed in via Magic Link!", "success", "Authentication");
+        if (isAuthPage) {
+            setTimeout(() => { window.location.href = 'profile.html'; }, 1200);
+        }
+    } else if (type === 'email_change') {
+        window.showToast("Your email address update has been verified!", "success", "Email Updated");
+        if (!isProfilePage) {
+            setTimeout(() => { window.location.href = 'profile.html'; }, 1200);
+        }
+    }
+};
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        window.initPasswordToggles();
+        window.handleAuthUrlRedirection();
+    });
+}
+
+
+// --- SUPABASE CONFIGURATION ---
+// Insert your live URL and Anon Key here from the Supabase Dashboard (Settings > API)
+const SUPABASE_URL = 'https://fvvdmrogquycehyncslp.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2dmRtcm9ncXV5Y2VoeW5jc2xwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNDQ3NTUsImV4cCI6MjA5NjgyMDc1NX0.a8PSwryUl589P7OkTZNdrik-f-1iLsTtxdhM9fKYM24';
+
+// --- AUTHENTICATION STATE & VERIFICATION ---
+window.currentUser = null;
+
+async function verifySessionWithBackend(session) {
+    if (!session || !session.user) return null;
+    try {
+        const { data: user, error } = await window.supabase
+            .rpc('verify_session_from_jwt', {
+                p_user_id: session.user.id
+            });
+
+        if (error || !user) {
+            return null;
+        }
+
+        return Array.isArray(user) ? user[0] : user;
+    } catch (e) {
+        console.error("Session verification failed:", e);
+        return null;
+    }
+}
+window.verifySessionWithBackend = verifySessionWithBackend;
+
+// --- 1. Data Initialization (Local Storage Mock Database - Offline Fallback Mode Only) ---
+const defaultBlogs = [
+    {
+        id: "1",
+        title: "The Future of Web Development in 2026",
+        summary: "Exploring the shift towards minimal frameworks and spatial interfaces.",
+        content: "We are entering a new era of web design. The visual fatigue of standard templates is real. Users want websites that are not just fast, but feel like tangible, premium physical products. In 2026, we see a massive surge in spatial layouts, dark-mode-first interfaces, cinematic animations, and interactive canvas components like Three.js. DiginixIT is leading this charge by combining WebGL with custom editorial layouts that capture user attention instantly.",
+        author: "Alex Rivers",
+        date: "2026-06-01",
+        category: "Tech",
+        image: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800"
+    },
+    {
+        id: "2",
+        title: "Mastering Design Systems",
+        summary: "How to build a scalable design system that developers actually love to use.",
+        content: "A design system is more than a Figma library. It is a shared language. To make a design system successful, developers and designers must share tokens—specifically HSL colors, grid spacings, typographic scales, and micro-animations. In this post, we explore how to configure clean, extensible utility variables in CSS and JS to automate style updates, minimize stylesheet bloat, and maintain pixel-perfect consistency across a suite of SaaS tools.",
+        author: "Sophia Chen",
+        date: "2026-05-25",
+        category: "Design",
+        image: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=800"
+    },
+    {
+        id: "3",
+        title: "Optimizing Core Web Vitals for $10k Sites",
+        summary: "A step-by-step checklist to achieve perfect Lighthouse scores.",
+        content: "Google's search algorithms heavily weight Core Web Vitals (LCP, FID, CLS). If your page takes more than 2.5 seconds to render the main hero element, you are losing valuable SEO ranking. Optimizing site performance requires several layers of tuning: deferred scripts loading, dynamic WebP image compression, CSS cleanup, layout shifts avoidance, and hardware-accelerated transitions. Follow our checklist to hit perfect 100/100 Lighthouse scores.",
+        author: "Marcus Vance",
+        date: "2026-05-18",
+        category: "SEO",
+        image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800"
+    }
+];
+
+const defaultUsers = [
+    { name: "Sarah Connor", email: "sarah@connor.com", date: "2026-05-10", status: "Active", plan: "Community", visits: 12 },
+    { name: "John Doe", email: "john@doe.com", date: "2026-05-15", status: "Active", plan: "Pro", visits: 45 },
+    { name: "Jane Smith", email: "jane@smith.com", date: "2026-06-01", status: "Blocked", plan: "Community", visits: 0 }
+];
+
+const defaultSettings = {
+    siteName: "DIGINIXIT.",
+    contactEmail: "contact@diginix.com",
+    contactPhone: "+92 300 7960300",
+    maintenanceMode: false,
+    linkedin: "https://linkedin.com/",
+    instagram: "https://instagram.com/",
+    twitter: "https://twitter.com/",
+    facebook: "https://facebook.com/",
+    youtube: "https://youtube.com/"
+};
+
+const defaultStats = {
+    activeUsers: "8,241",
+    visits: 142300,
+    userHistory: [100, 200, 300, 400, 500, 600],
+    visitHistory: [1000, 2000, 3000, 4000, 5000, 6000]
+};
+
+function initLocalStorage() {
+    if (!localStorage.getItem('blogs')) {
+        localStorage.setItem('blogs', JSON.stringify(defaultBlogs));
+    }
+    if (!localStorage.getItem('users')) {
+        localStorage.setItem('users', JSON.stringify(defaultUsers));
+    }
+    if (!localStorage.getItem('settings')) {
+        localStorage.setItem('settings', JSON.stringify(defaultSettings));
+    }
+    if (!localStorage.getItem('stats')) {
+        localStorage.setItem('stats', JSON.stringify(defaultStats));
+    }
+    if (!localStorage.getItem('visit_logs')) {
+        const logs = [];
+        const today = new Date();
+        
+        // Helper to generate a random date between two Date objects
+        const randomDateBetween = (start, end) => {
+            const date = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+            return date.toISOString();
+        };
+
+        const generateMockIP = () => `203.135.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254) + 1}`;
+        const generateMockCountry = () => {
+            const countries = ['Pakistan', 'United States', 'United Kingdom', 'UAE', 'Saudi Arabia'];
+            return countries[Math.floor(Math.random() * countries.length)];
+        };
+        const generateMockDevice = () => {
+            const devices = ['Desktop', 'Mobile', 'Tablet'];
+            const weights = [0.65, 0.25, 0.1]; // desktop 65%, mobile 25%, tablet 10%
+            const r = Math.random();
+            return r < weights[0] ? devices[0] : r < (weights[0] + weights[1]) ? devices[1] : devices[2];
+        };
+        const generateMockPage = () => {
+            const pages = ['/index.html', '/blog.html', '/services.html', '/contact.html', '/article.html'];
+            return pages[Math.floor(Math.random() * pages.length)];
+        };
+
+        // Sarah Connor joined 2026-05-10
+        const sarahStart = new Date(2026, 4, 10, 0, 0, 0, 0); // May 10, 2026
+        for (let i = 0; i < 12; i++) {
+            logs.push({
+                email: 'sarah@connor.com',
+                session_id: getUUID(),
+                visited_at: randomDateBetween(sarahStart, today),
+                ip_address: generateMockIP(),
+                country: generateMockCountry(),
+                device: generateMockDevice(),
+                page_url: generateMockPage(),
+                user_agent: 'Mozilla/5.0'
+            });
+        }
+
+        // John Doe joined 2026-05-15
+        const johnStart = new Date(2026, 4, 15, 0, 0, 0, 0); // May 15, 2026
+        for (let i = 0; i < 45; i++) {
+            logs.push({
+                email: 'john@doe.com',
+                session_id: getUUID(),
+                visited_at: randomDateBetween(johnStart, today),
+                ip_address: generateMockIP(),
+                country: generateMockCountry(),
+                device: generateMockDevice(),
+                page_url: generateMockPage(),
+                user_agent: 'Mozilla/5.0'
+            });
+        }
+
+        // 100 Anonymous visits over last 40 days
+        const anonStart = new Date();
+        anonStart.setDate(today.getDate() - 40);
+        for (let i = 0; i < 100; i++) {
+            logs.push({
+                email: null,
+                session_id: getUUID(),
+                visited_at: randomDateBetween(anonStart, today),
+                ip_address: generateMockIP(),
+                country: generateMockCountry(),
+                device: generateMockDevice(),
+                page_url: generateMockPage(),
+                user_agent: 'Mozilla/5.0'
+            });
+        }
+
+        // Sort chronologically
+        logs.sort((a, b) => new Date(a.visited_at) - new Date(b.visited_at));
+        localStorage.setItem('visit_logs', JSON.stringify(logs));
+    }
+}
+initLocalStorage();
+
+// --- 2. Live Supabase Backend Initialization ---
+window.useSupabase = false;
+window.supabase = null;
+
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+async function initSupabase() {
+    const isConfigured = SUPABASE_URL && SUPABASE_ANON_KEY &&
+        SUPABASE_URL !== 'YOUR_SUPABASE_URL' &&
+        SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
+
+    if (!isConfigured) {
+        console.log("DiginixIT: Supabase credentials not set. Running in offline localStorage mode.");
+        window.useSupabase = false;
+        return;
+    }
+
+    try {
+        // Load Supabase Client SDK locally
+        await loadScript('js/supabase.js');
+
+        if (typeof supabase !== 'undefined') {
+            window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    flowType: 'implicit'
+                }
+            });
+            window.useSupabase = true;
+            console.log("DiginixIT: Live Supabase client initialized with implicit flow.");
+        } else {
+            console.warn("DiginixIT: Failed to define 'supabase'. Falling back to localStorage.");
+            window.useSupabase = false;
+        }
+    } catch (e) {
+        console.warn("DiginixIT: Supabase connection failed. Falling back to localStorage:", e);
+        window.useSupabase = false;
+    }
+}
+window.backendReady = initSupabase();
+
+// --- 3. Unified API Client Wrapper ---
+window.apiCall = async function (action, data = null) {
+    await window.backendReady;
+
+    if (!window.useSupabase) {
+        return apiCallLocalStorageFallback(action, data);
+    }
+
+    try {
+        switch (action) {
+            case 'ping':
+                return { success: true, message: "Database active" };
+
+            case 'get_blogs': {
+                const { data: blogs, error } = await window.supabase
+                    .rpc('get_public_blogs');
+                if (error) throw error;
+                return blogs || [];
+            }
+
+            case 'get_admin_blogs': {
+                const { data: blogs, error } = await window.supabase
+                    .rpc('get_all_blogs_admin');
+                if (error) throw error;
+                return blogs || [];
+            }
+
+            case 'save_blog': {
+                const { error } = await window.supabase
+                    .rpc('save_blog_secure', {
+                        p_id: data.id ? Number(data.id) : null,
+                        p_title: data.title,
+                        p_category: data.category,
+                        p_author: data.author,
+                        p_summary: data.summary,
+                        p_content: data.content,
+                        p_status: data.status || 'published',
+                        p_csrf_token: data._csrf_token
+                    });
+                if (error) throw error;
+                return { success: true };
+            }
+
+            case 'delete_blog': {
+                const { error } = await window.supabase
+                    .rpc('delete_blog_secure', {
+                        p_id: Number(data.id),
+                        p_csrf_token: data._csrf_token
+                    });
+                if (error) throw error;
+                return { success: true };
+            }
+
+            case 'get_users': {
+                const { data: users, error } = await window.supabase
+                    .rpc('get_all_users_admin');
+                if (error) throw error;
+                return users || [];
+            }
+
+            case 'get_visit_logs': {
+                const { data: logs, error } = await window.supabase
+                    .rpc('get_visit_logs_admin');
+                if (error) throw error;
+                return logs || [];
+            }
+
+            case 'get_admin_analytics': {
+                const { data: result, error } = await window.supabase
+                    .rpc('get_admin_analytics', {
+                        p_start_date: data.start_date,
+                        p_end_date: data.end_date
+                    });
+                if (error) throw error;
+                return typeof result === 'string' ? JSON.parse(result) : result;
+            }
+
+            case 'update_user_status': {
+                const { data: result, error } = await window.supabase
+                    .rpc('update_user_status_secure', {
+                        p_email: data.email,
+                        p_csrf_token: data._csrf_token
+                    });
+                if (error) throw error;
+                const ret = Array.isArray(result) ? result[0] : result;
+                return { success: ret.success, status: ret.status };
+            }
+
+            case 'delete_user': {
+                const { error } = await window.supabase
+                    .rpc('delete_user_secure', {
+                        p_email: data.email,
+                        p_csrf_token: data._csrf_token
+                    });
+                if (error) throw error;
+                return { success: true };
+            }
+
+            case 'get_settings': {
+                const { data: rows, error } = await window.supabase.rpc('get_public_settings');
+                if (error) throw error;
+                const settings = {};
+                (rows || []).forEach(row => {
+                    let val = row.value_text;
+                    if (row.key_name === 'maintenanceMode') {
+                        val = (val === 'true');
+                    }
+                    settings[row.key_name] = val;
+                });
+                return settings;
+            }
+
+            case 'get_admin_settings': {
+                const { data: rows, error } = await window.supabase.rpc('get_all_settings_admin');
+                if (error) throw error;
+                const settings = {};
+                (rows || []).forEach(row => {
+                    let val = row.value_text;
+                    if (row.key_name === 'maintenanceMode') {
+                        val = (val === 'true');
+                    }
+                    settings[row.key_name] = val;
+                });
+                return settings;
+            }
+
+            case 'save_settings': {
+                const { error } = await window.supabase
+                    .rpc('save_settings_secure', {
+                        p_site_name: data.siteName,
+                        p_contact_email: data.contactEmail,
+                        p_contact_phone: data.contactPhone || '',
+                        p_maintenance_mode: data.maintenanceMode ? 'true' : 'false',
+                        p_linkedin: data.linkedin || '',
+                        p_instagram: data.instagram || '',
+                        p_twitter: data.twitter || '',
+                        p_facebook: data.facebook || '',
+                        p_youtube: data.youtube || '',
+                        p_csrf_token: data._csrf_token
+                    });
+                if (error) throw error;
+                return { success: true };
+            }
+
+            case 'get_stats': {
+                const { data: rows, error } = await window.supabase
+                    .rpc('get_public_stats');
+                if (error) throw error;
+                const dbStats = Array.isArray(rows) ? rows[0] : rows;
+                if (!dbStats) {
+                    return {
+                        activeUsers: "0",
+                        visits: 0,
+                        userHistory: [0, 0, 0, 0, 0, 0],
+                        visitHistory: [0, 0, 0, 0, 0, 0]
+                    };
+                }
+                return {
+                    activeUsers: String(dbStats.activeusers),
+                    visits: Number(dbStats.visits),
+                    userHistory: (dbStats.userhistory || '0,0,0,0,0,0').split(',').map(Number),
+                    visitHistory: (dbStats.visithistory || '0,0,0,0,0,0').split(',').map(Number)
+                };
+            }
+
+            case 'save_stats': {
+                const histStr = data.revenueHistory.join(',');
+                const { error } = await window.supabase
+                    .rpc('save_stats_secure', {
+                        p_revenue: data.revenue,
+                        p_active_users: data.activeUsers,
+                        p_executions: data.executions,
+                        p_revenue_history: histStr,
+                        p_csrf_token: data._csrf_token
+                    });
+                if (error) throw error;
+                return { success: true };
+            }
+
+            case 'submit_contact':
+                // Handled directly via Netlify form actions POST
+                return { success: true };
+
+            case 'login': {
+                const { data: authData, error: authError } = await window.supabase.auth.signInWithPassword({
+                    email: data.email,
+                    password: data.password
+                });
+                if (authError) {
+                    return { success: false, error: authError.message || "Invalid email or password" };
+                }
+                const verified = await verifySessionWithBackend(authData.session);
+                if (!verified) {
+                    await window.supabase.auth.signOut();
+                    return { success: false, error: "Your account is not active. Please contact support." };
+                }
+                const sessionId = sessionStorage.getItem('session_id');
+                if (sessionId) {
+                    try {
+                        await window.supabase.rpc('associate_session_visits', {
+                            p_session_id: sessionId,
+                            p_email: verified.email
+                        });
+                        sessionStorage.setItem('user_logged_visit_tracked', verified.email);
+                        sessionStorage.setItem('user_visit_tracked', 'true');
+                    } catch (e) {
+                        console.error("Failed to associate session on login:", e);
+                    }
+                }
+                return { success: true, user: verified };
+            }
+
+            case 'register': {
+                const { data: authData, error: authError } = await window.supabase.auth.signUp({
+                    email: data.email,
+                    password: data.password,
+                    options: {
+                        data: {
+                            full_name: data.name
+                        }
+                    }
+                });
+                if (authError) {
+                    return { success: false, error: authError.message || "Registration failed" };
+                }
+                if (!authData.user) {
+                    return { success: false, error: "Registration failed" };
+                }
+                const { data: user, error: rpcError } = await window.supabase
+                    .rpc('create_user_profile_from_auth', {
+                        p_auth_user_id: authData.user.id,
+                        p_name: data.name,
+                        p_email: data.email
+                    });
+                if (rpcError) {
+                    return { success: false, error: rpcError.message || "Profile creation failed" };
+                }
+                const returnedUser = Array.isArray(user) ? user[0] : user;
+                
+                const requiresVerification = !authData.session;
+
+                if (!requiresVerification) {
+                    const sessionId = sessionStorage.getItem('session_id');
+                    if (sessionId) {
+                        try {
+                            await window.supabase.rpc('associate_session_visits', {
+                                p_session_id: sessionId,
+                                p_email: returnedUser.email
+                            });
+                            sessionStorage.setItem('user_logged_visit_tracked', returnedUser.email);
+                            sessionStorage.setItem('user_visit_tracked', 'true');
+                        } catch (e) {
+                            console.error("Failed to associate session on registration:", e);
+                        }
+                    }
+                }
+                return { success: true, user: returnedUser, requiresVerification };
+            }
+
+            case 'reset_password_request': {
+                const redirectToUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, 'auth.html') + '?mode=reset';
+                const { error } = await window.supabase.auth.resetPasswordForEmail(data.email, {
+                    redirectTo: redirectToUrl
+                });
+                if (error) {
+                    return { success: false, error: error.message };
+                }
+                return { success: true };
+            }
+
+            case 'send_magic_link': {
+                const redirectToUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, 'auth.html') + '?type=magiclink';
+                const { error } = await window.supabase.auth.signInWithOtp({
+                    email: data.email,
+                    options: {
+                        emailRedirectTo: redirectToUrl
+                    }
+                });
+                if (error) {
+                    return { success: false, error: error.message };
+                }
+                return { success: true };
+            }
+
+            case 'resend_confirmation': {
+                const { error } = await window.supabase.auth.resend({
+                    type: 'signup',
+                    email: data.email
+                });
+                if (error) {
+                    return { success: false, error: error.message };
+                }
+                return { success: true };
+            }
+
+            case 'accept_invite': {
+                const { data: { session } } = await window.supabase.auth.getSession();
+                if (!session) {
+                    return { success: false, error: "Authentication session is missing. Your invitation link may have expired or was opened in a different browser session. Please contact the administrator for a new invite." };
+                }
+                const { data: authData, error: authError } = await window.supabase.auth.updateUser({
+                    password: data.password,
+                    data: data.name ? { full_name: data.name } : undefined
+                });
+                if (authError) {
+                    return { success: false, error: authError.message };
+                }
+                if (data.name && authData.user) {
+                    await window.supabase.rpc('create_user_profile_from_auth', {
+                        p_auth_user_id: authData.user.id,
+                        p_name: data.name,
+                        p_email: authData.user.email
+                    });
+                }
+                return { success: true, user: authData.user };
+            }
+
+            case 'reauthenticate': {
+                const { data: authData, error } = await window.supabase.auth.reauthenticate();
+                if (error) {
+                    return { success: false, error: error.message };
+                }
+                return { success: true, data: authData };
+            }
+
+            case 'update_forgotten_password': {
+                const { data: { session } } = await window.supabase.auth.getSession();
+                if (!session) {
+                    return { success: false, error: "Authentication session is missing. Your password reset link may have expired or was opened in a different browser session. Please request a new link." };
+                }
+                const { error } = await window.supabase.auth.updateUser({
+                    password: data.password
+                });
+                if (error) {
+                    return { success: false, error: error.message };
+                }
+                return { success: true };
+            }
+
+            case 'associate_session_visits': {
+                const { error } = await window.supabase
+                    .rpc('associate_session_visits', {
+                        p_session_id: data.session_id,
+                        p_email: data.email
+                    });
+                if (error) throw error;
+                return { success: true };
+            }
+
+            case 'get_filtered_users': {
+                const { data: users, error } = await window.supabase
+                    .rpc('get_filtered_users_admin', {
+                        p_search: data.search,
+                        p_start_date: data.start_date,
+                        p_end_date: data.end_date
+                    });
+                if (error) throw error;
+                return users || [];
+            }
+
+            case 'update_profile': {
+                const { data: user, error: rpcError } = await window.supabase
+                    .rpc('update_profile_secure', {
+                        p_name: data.name
+                    });
+                if (rpcError) {
+                    return { success: false, error: rpcError.message || "Update profile failed" };
+                }
+                if (data.password) {
+                    const { error: authError } = await window.supabase.auth.updateUser({
+                        password: data.password
+                    });
+                    if (authError) {
+                        return { success: false, error: "Profile updated, but password update failed: " + authError.message };
+                    }
+                }
+                const returnedUser = Array.isArray(user) ? user[0] : user;
+                return { success: true, user: returnedUser };
+            }
+
+            case 'update_subscription': {
+                return { success: true };
+            }
+
+            case 'verify_session': {
+                const { data: { session }, error: sessionError } = await window.supabase.auth.getSession();
+                if (sessionError || !session) {
+                    return { success: false, error: "Session expired. Please sign in again." };
+                }
+                const verified = await verifySessionWithBackend(session);
+                if (!verified) {
+                    return { success: false, error: "Session expired. Please sign in again." };
+                }
+                return { success: true, user: verified };
+            }
+
+            case 'increment_user_visit': {
+                const { data: visits, error } = await window.supabase
+                    .rpc('increment_user_visit_secure', { 
+                        p_email: (data && data.email !== undefined) ? data.email : null,
+                        p_session_id: (data && data.session_id !== undefined) ? data.session_id : null,
+                        p_ip_address: (data && data.ip_address !== undefined) ? data.ip_address : null,
+                        p_country: (data && data.country !== undefined) ? data.country : null,
+                        p_device: (data && data.device !== undefined) ? data.device : null,
+                        p_page_url: (data && data.page_url !== undefined) ? data.page_url : null,
+                        p_user_agent: (data && data.user_agent !== undefined) ? data.user_agent : null
+                    });
+                if (error) throw error;
+                return { success: true, visits: visits };
+            }
+
+            default:
+                return { success: false, error: "Unknown action" };
+        }
+    } catch (err) {
+        console.error(`DiginixIT: Supabase query execution exception on '${action}':`, err);
+        if (err && typeof err === 'object') {
+            console.error(`Error Details for '${action}':`, {
+                message: err.message,
+                details: err.details,
+                hint: err.hint,
+                code: err.code
+            });
+        }
+        return { success: false, error: err.message || "Database connection error." };
+    }
+};
+
+// --- 4. Offline localStorage Fallback Operations ---
+function apiCallLocalStorageFallback(action, data) {
+    return new Promise((resolve) => {
+        let blogs = JSON.parse(localStorage.getItem('blogs') || '[]');
+        let users = JSON.parse(localStorage.getItem('users') || '[]');
+        let settings = JSON.parse(localStorage.getItem('settings') || '{}');
+        let stats = JSON.parse(localStorage.getItem('stats') || '{}');
+
+        switch (action) {
+            case 'ping':
+                resolve({ success: false, message: "Local storage only" });
+                break;
+            case 'get_blogs':
+                resolve(blogs.slice().reverse());
+                break;
+            case 'get_admin_blogs':
+                resolve(blogs.slice().reverse());
+                break;
+            case 'save_blog':
+                if (data.id) {
+                    const idx = blogs.findIndex(b => b.id === data.id);
+                    if (idx !== -1) {
+                        const oldBlog = blogs[idx];
+                        const newStatus = data.status || 'published';
+                        let newDate = oldBlog.date;
+                        if (newStatus === 'published' && (!oldBlog.date || oldBlog.status === 'draft')) {
+                            newDate = new Date().toISOString().split('T')[0];
+                        } else if (newStatus === 'draft') {
+                            newDate = null;
+                        }
+                        blogs[idx] = { ...oldBlog, ...data, date: newDate };
+                    }
+                } else {
+                    const newBlog = {
+                        ...data,
+                        id: Date.now().toString(),
+                        date: (data.status || 'published') === 'published' ? new Date().toISOString().split('T')[0] : null
+                    };
+                    blogs.push(newBlog);
+                }
+                localStorage.setItem('blogs', JSON.stringify(blogs));
+                resolve({ success: true });
+                break;
+            case 'delete_blog':
+                blogs = blogs.filter(b => b.id !== data.id);
+                localStorage.setItem('blogs', JSON.stringify(blogs));
+                resolve({ success: true });
+                break;
+            case 'get_filtered_users': {
+                const query = data.search ? data.search.toLowerCase().trim() : '';
+                const startDate = data.start_date ? new Date(data.start_date) : null;
+                const endDate = data.end_date ? new Date(data.end_date) : null;
+                const visitLogs = JSON.parse(localStorage.getItem('visit_logs') || '[]');
+
+                let filtered = users.map(user => {
+                    const userLogs = visitLogs.filter(log => log.email && log.email.toLowerCase() === user.email.toLowerCase());
+                    const uniqueSessions = new Set(userLogs.map(log => log.session_id || log.id));
+                    const totalVisits = Math.max(Number(user.visits) || 0, uniqueSessions.size);
+                    
+                    let rangeVisits = 0;
+                    if (startDate || endDate) {
+                        const logsInRange = userLogs.filter(log => {
+                            const logDate = new Date(log.visited_at);
+                            return (!startDate || logDate >= startDate) && (!endDate || logDate <= endDate);
+                        });
+                        const uniqueRangeSessions = new Set(logsInRange.map(log => log.session_id || log.id));
+                        rangeVisits = uniqueRangeSessions.size;
+                    } else {
+                        rangeVisits = totalVisits;
+                    }
+                    return {
+                        ...user,
+                        range_visits: rangeVisits,
+                        total_visits: totalVisits
+                    };
+                });
+
+                if (query) {
+                    filtered = filtered.filter(u => {
+                        return (u.name || '').toLowerCase().includes(query) ||
+                               (u.email || '').toLowerCase().includes(query) ||
+                               (u.plan || 'Community').toLowerCase().includes(query) ||
+                               (u.status || 'Active').toLowerCase().includes(query);
+                    });
+                }
+
+                if (startDate || endDate) {
+                    filtered = filtered.filter(u => {
+                        const uDate = new Date(u.date);
+                        const joinedInRange = (!startDate || uDate >= startDate) && (!endDate || uDate <= endDate);
+                        const visitedInRange = u.range_visits > 0;
+                        return joinedInRange || visitedInRange;
+                    });
+                }
+
+                // Map keys to match PostgREST returned fields
+                const mapped = filtered.map(u => ({
+                    name: u.name,
+                    email: u.email,
+                    date: u.date,
+                    plan: u.plan,
+                    status: u.status,
+                    range_visits: u.range_visits,
+                    total_visits: u.total_visits
+                }));
+
+                resolve(mapped);
+                break;
+            }
+
+            case 'get_admin_analytics': {
+                const visitLogs = JSON.parse(localStorage.getItem('visit_logs') || '[]');
+                const usersList = JSON.parse(localStorage.getItem('users') || '[]');
+                
+                const startDate = new Date(data.start_date);
+                const endDate = new Date(data.end_date);
+                const rangeDurationMs = Math.abs(endDate.getTime() - startDate.getTime());
+                const priorEndDate = new Date(startDate.getTime() - 1);
+                const priorStartDate = new Date(startDate.getTime() - rangeDurationMs);
+
+                const filterLogs = (list, start, end) => list.filter(item => {
+                    const d = new Date(item.visited_at);
+                    return d >= start && d <= end;
+                });
+                const filterUsers = (list, start, end) => list.filter(item => {
+                    const d = new Date(item.date);
+                    return d >= start && d <= end;
+                });
+
+                const currentLogs = filterLogs(visitLogs, startDate, endDate);
+                const priorLogs = filterLogs(visitLogs, priorStartDate, priorEndDate);
+                const currentUsers = filterUsers(usersList, startDate, endDate);
+                const priorUsers = filterUsers(usersList, priorStartDate, priorEndDate);
+
+                const calculateStats = (logs) => {
+                    const sessions = {};
+                    logs.forEach((log, index) => {
+                        const sId = log.session_id || (log.email ? `${log.email}_${index}` : `anon_${index}`);
+                        const d = new Date(log.visited_at).getTime();
+                        sessions[sId] = sessions[sId] || [];
+                        sessions[sId].push(d);
+                    });
+
+                    let totalSessions = 0;
+                    let bounces = 0;
+
+                    for (const sId in sessions) {
+                        const times = sessions[sId];
+                        totalSessions++;
+                        if (times.length === 1) {
+                            bounces++;
+                        }
+                    }
+                    const totalVisits = totalSessions;
+                    const avgDuration = totalSessions > 0 ? Math.round((bounces / totalSessions) * 100) : 0;
+                    const articlesRead = logs.filter(log => log.page_url && (log.page_url.includes('article.html') || log.page_url.includes('article'))).length;
+                    return { totalVisits, avgDuration, articlesRead };
+                };
+
+                const currentStats = calculateStats(currentLogs);
+                const priorStats = calculateStats(priorLogs);
+
+                // Devices
+                const devices = {};
+                currentLogs.forEach(log => {
+                    const d = log.device || 'Desktop';
+                    devices[d] = (devices[d] || 0) + 1;
+                });
+                const devicesArr = Object.entries(devices).map(([label, count]) => ({ label, count })).sort((a,b)=>b.count-a.count);
+
+                // Countries
+                const countries = {};
+                currentLogs.forEach(log => {
+                    const c = log.country || 'Unknown';
+                    countries[c] = (countries[c] || 0) + 1;
+                });
+                const countriesArr = Object.entries(countries).map(([label, count]) => ({ label, count })).sort((a,b)=>b.count-a.count);
+
+                // Pages
+                const pages = {};
+                currentLogs.forEach(log => {
+                    const p = log.page_url || '/home';
+                    pages[p] = (pages[p] || 0) + 1;
+                });
+                const pagesArr = Object.entries(pages).map(([label, count]) => ({ label, count })).sort((a,b)=>b.count-a.count);
+
+                // Trends
+                const diffDays = rangeDurationMs / 86400000;
+                let intervalMinutes = 60;
+                if (diffDays > 1.1 && diffDays <= 31) intervalMinutes = 1440;
+                else if (diffDays > 31 && diffDays <= 180) intervalMinutes = 10080;
+                else if (diffDays > 180) intervalMinutes = 43200;
+
+                const getBucketStart = (date, unit) => {
+                    const d = new Date(date);
+                    if (unit === 60) { d.setMinutes(0,0,0); }
+                    else if (unit === 1440) { d.setHours(0,0,0,0); }
+                    else if (unit === 10080) { d.setHours(0,0,0,0); const day = d.getDay(); d.setDate(d.getDate() - day); }
+                    else { d.setDate(1); d.setHours(0,0,0,0); }
+                    return d.toISOString();
+                };
+
+                const visitsTrend = {};
+                const bucketSessionsTracker = {};
+                currentLogs.forEach((log, index) => {
+                    const key = getBucketStart(log.visited_at, intervalMinutes);
+                    const sId = log.session_id || (log.email ? `${log.email}_${index}` : `anon_${index}`);
+                    bucketSessionsTracker[key] = bucketSessionsTracker[key] || new Set();
+                    bucketSessionsTracker[key].add(sId);
+                });
+                for (const key in bucketSessionsTracker) {
+                    visitsTrend[key] = bucketSessionsTracker[key].size;
+                }
+                const visitsTrendArr = Object.entries(visitsTrend).map(([bucket_time, count]) => ({ bucket_time, count })).sort((a,b)=>new Date(a.bucket_time)-new Date(b.bucket_time));
+
+                const usersTrend = {};
+                currentUsers.forEach(u => {
+                    const key = getBucketStart(u.date, intervalMinutes);
+                    usersTrend[key] = (usersTrend[key] || 0) + 1;
+                });
+                const usersTrendArr = Object.entries(usersTrend).map(([bucket_time, count]) => ({ bucket_time, count })).sort((a,b)=>new Date(a.bucket_time)-new Date(b.bucket_time));
+
+                const retentionTrend = {};
+                const bucketSessions = {};
+                currentLogs.forEach((log, index) => {
+                    const key = getBucketStart(log.visited_at, intervalMinutes);
+                    const sId = log.session_id || (log.email ? `${log.email}_${index}` : `anon_${index}`);
+                    const d = new Date(log.visited_at).getTime();
+                    bucketSessions[key] = bucketSessions[key] || {};
+                    bucketSessions[key][sId] = bucketSessions[key][sId] || [];
+                    bucketSessions[key][sId].push(d);
+                });
+
+                Object.entries(bucketSessions).forEach(([key, sessMap]) => {
+                    let bounces = 0;
+                    let countSess = 0;
+                    for (const sId in sessMap) {
+                        const times = sessMap[sId];
+                        countSess++;
+                        if (times.length === 1) {
+                            bounces++;
+                        }
+                    }
+                    const bucketLogs = currentLogs.filter(log => getBucketStart(log.visited_at, intervalMinutes) === key);
+                    const readsCount = bucketLogs.filter(log => log.page_url && (log.page_url.includes('article.html') || log.page_url.includes('article'))).length;
+                    retentionTrend[key] = {
+                        avg_duration: countSess > 0 ? Math.round((bounces / countSess) * 100) : 0,
+                        articles_read: readsCount
+                    };
+                });
+                const retentionTrendArr = Object.entries(retentionTrend).map(([bucket_time, val]) => ({
+                    bucket_time,
+                    avg_duration: val.avg_duration,
+                    articles_read: val.articles_read
+                })).sort((a,b)=>new Date(a.bucket_time)-new Date(b.bucket_time));
+
+                // Recent
+                const recentArr = currentLogs.slice().sort((a,b)=>new Date(b.visited_at)-new Date(a.visited_at)).slice(0,7).map(log => ({
+                    ip_address: log.ip_address || '127.0.0.1',
+                    country: log.country || 'Unknown',
+                    page_url: log.page_url || '/home',
+                    visited_at: log.visited_at
+                }));
+
+                resolve({
+                    total_visits: currentStats.totalVisits,
+                    active_users: usersList.length,
+                    avg_session_duration: currentStats.avgDuration,
+                    articles_read: currentStats.articlesRead,
+                    prior_total_visits: priorStats.totalVisits,
+                    prior_active_users: usersList.filter(u => new Date(u.date) < startDate).length,
+                    prior_avg_session_duration: priorStats.avgDuration,
+                    prior_articles_read: priorStats.articlesRead,
+                    devices: devicesArr,
+                    countries: countriesArr,
+                    pages: pagesArr,
+                    visits_trend: visitsTrendArr,
+                    users_trend: usersTrendArr,
+                    retention_trend: retentionTrendArr,
+                    recent_visitors: recentArr
+                });
+                break;
+            }
+            case 'associate_session_visits': {
+                let visitLogs = JSON.parse(localStorage.getItem('visit_logs') || '[]');
+                const sessionId = data.session_id;
+                const email = data.email;
+                let updateCount = 0;
+
+                if (sessionId && email) {
+                    visitLogs.forEach(log => {
+                        if (log.session_id === sessionId && (!log.email || log.email === '')) {
+                            log.email = email;
+                            updateCount++;
+                        }
+                    });
+                    if (updateCount > 0) {
+                        localStorage.setItem('visit_logs', JSON.stringify(visitLogs));
+                        const userIdx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+                        if (userIdx !== -1) {
+                            users[userIdx].visits = (Number(users[userIdx].visits) || 0) + updateCount;
+                            localStorage.setItem('users', JSON.stringify(users));
+                        }
+                    }
+                }
+                resolve({ success: true });
+                break;
+            }
+            case 'get_users':
+                resolve(users);
+                break;
+            case 'get_visit_logs': {
+                const visitLogs = JSON.parse(localStorage.getItem('visit_logs') || '[]');
+                resolve(visitLogs);
+                break;
+            }
+            case 'update_user_status':
+                const uIdx = users.findIndex(u => u.email === data.email);
+                let newStatus = 'Active';
+                if (uIdx !== -1) {
+                    users[uIdx].status = users[uIdx].status === 'Blocked' ? 'Active' : 'Blocked';
+                    newStatus = users[uIdx].status;
+                    localStorage.setItem('users', JSON.stringify(users));
+                }
+                resolve({ success: true, status: newStatus });
+                break;
+            case 'delete_user':
+                users = users.filter(u => u.email !== data.email);
+                localStorage.setItem('users', JSON.stringify(users));
+                if (data && data.email) {
+                    let visitLogs = JSON.parse(localStorage.getItem('visit_logs') || '[]');
+                    visitLogs = visitLogs.filter(log => !log.email || log.email.toLowerCase() !== data.email.toLowerCase());
+                    localStorage.setItem('visit_logs', JSON.stringify(visitLogs));
+                }
+                resolve({ success: true });
+                break;
+            case 'get_settings':
+            case 'get_admin_settings':
+                resolve(settings);
+                break;
+            case 'save_settings':
+                localStorage.setItem('settings', JSON.stringify(data));
+                resolve({ success: true });
+                break;
+            case 'get_stats': {
+                const visitLogs = JSON.parse(localStorage.getItem('visit_logs') || '[]');
+                const usersList = JSON.parse(localStorage.getItem('users') || '[]');
+                
+                const totalUsers = usersList.length;
+                const loggedSessions = new Set(visitLogs.map((log, index) => log.session_id || `anon_${index}`));
+                const totalVisits = loggedSessions.size;
+                
+                const months = [];
+                const today = new Date();
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                    months.push(d);
+                }
+                
+                const userHistory = months.map(m => {
+                    return usersList.filter(u => {
+                        const uDate = new Date(u.date);
+                        return uDate.getFullYear() === m.getFullYear() && uDate.getMonth() === m.getMonth();
+                    }).length;
+                });
+                
+                const visitHistory = months.map(m => {
+                    const monthLogs = visitLogs.filter(log => {
+                        const logDate = new Date(log.visited_at);
+                        return logDate.getFullYear() === m.getFullYear() && logDate.getMonth() === m.getMonth();
+                    });
+                    const monthSessions = new Set(monthLogs.map((log, index) => log.session_id || `anon_${index}`));
+                    return monthSessions.size;
+                });
+                
+                resolve({
+                    activeUsers: String(totalUsers),
+                    visits: totalVisits,
+                    userHistory: userHistory,
+                    visitHistory: visitHistory
+                });
+                break;
+            }
+            case 'save_stats':
+                localStorage.setItem('stats', JSON.stringify(data));
+                resolve({ success: true });
+                break;
+            case 'increment_user_visit': {
+                let visitLogs = JSON.parse(localStorage.getItem('visit_logs') || '[]');
+                const sessionId = data ? data.session_id : null;
+                const email = data ? data.email : null;
+                
+                const alreadyTracked = sessionId && visitLogs.some(log => log.session_id === sessionId);
+                let visitCount = 0;
+
+                // Always log the visit log to record multiple page views per session
+                visitLogs.push({
+                    email: email,
+                    session_id: sessionId,
+                    visited_at: new Date().toISOString(),
+                    ip_address: data.ip_address || '127.0.0.1',
+                    country: data.country || 'Unknown',
+                    device: data.device || 'Desktop',
+                    page_url: data.page_url || '/home',
+                    user_agent: data.user_agent || 'Mozilla/5.0'
+                });
+                localStorage.setItem('visit_logs', JSON.stringify(visitLogs));
+
+                if (email) {
+                    const userIdx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+                    if (userIdx !== -1) {
+                        if (!alreadyTracked) {
+                            users[userIdx].visits = (Number(users[userIdx].visits) || 0) + 1;
+                            localStorage.setItem('users', JSON.stringify(users));
+                        }
+                        visitCount = users[userIdx].visits;
+                    }
+                }
+                resolve({ success: true, visits: visitCount });
+                break;
+            }
+            case 'submit_contact':
+                resolve({ success: true });
+                break;
+            case 'login': {
+                const user = users.find(u => u.email.toLowerCase() === data.email.toLowerCase() && u.password === data.password);
+                if (!user) {
+                    resolve({ success: false, error: "Invalid email or password" });
+                } else if (user.status === 'Blocked') {
+                    resolve({ success: false, error: "Your account is blocked. Please contact administrator." });
+                } else {
+                    const safeUser = { ...user };
+                    delete safeUser.password;
+                    // Generate local fake session token
+                    safeUser.session_token = 'local-session-token';
+                    resolve({ success: true, user: safeUser });
+                }
+                break;
+            }
+            case 'register':
+                if (users.some(u => u.email.toLowerCase() === data.email.toLowerCase())) {
+                    resolve({ success: false, error: "An account with this email address already exists." });
+                } else {
+                    const newUser = {
+                        name: data.name,
+                        email: data.email,
+                        password: data.password,
+                        plan: 'Community', // Force 'Community' plan
+                        date: new Date().toISOString().split('T')[0],
+                        status: 'Active'
+                    };
+                    users.push(newUser);
+                    localStorage.setItem('users', JSON.stringify(users));
+
+                    const safeUser = { ...newUser };
+                    delete safeUser.password;
+                    safeUser.session_token = 'local-session-token';
+                    resolve({ success: true, user: safeUser });
+                }
+                break;
+            case 'reset_password_request': {
+                const userExists = users.some(u => u.email.toLowerCase() === data.email.toLowerCase());
+                if (!userExists) {
+                    resolve({ success: false, error: "Email address not found." });
+                } else {
+                    resolve({ success: true });
+                }
+                break;
+            }
+            case 'update_forgotten_password': {
+                const email = data.email || (JSON.parse(localStorage.getItem('currentUser') || '{}')).email;
+                const idx = users.findIndex(u => u.email.toLowerCase() === email?.toLowerCase());
+                if (idx !== -1) {
+                    users[idx].password = data.password;
+                    localStorage.setItem('users', JSON.stringify(users));
+                    resolve({ success: true });
+                } else {
+                    resolve({ success: false, error: "User not found to update password." });
+                }
+                break;
+            }
+            case 'update_profile': {
+                const profIdx = users.findIndex(u => u.email === data.email);
+                if (profIdx !== -1) {
+                    users[profIdx].name = data.name;
+                    if (data.password) {
+                        users[profIdx].password = data.password;
+                    }
+                    localStorage.setItem('users', JSON.stringify(users));
+
+                    const safeUser = { ...users[profIdx] };
+                    delete safeUser.password;
+                    safeUser.session_token = 'local-session-token';
+                    resolve({ success: true, user: safeUser });
+                } else {
+                    resolve({ success: false, error: "User profile not found" });
+                }
+                break;
+            }
+            case 'update_subscription': {
+                const subIdx = users.findIndex(u => u.email === data.email);
+                if (subIdx !== -1) {
+                    users[subIdx].plan = data.plan;
+                    localStorage.setItem('users', JSON.stringify(users));
+
+                    const safeUser = { ...users[subIdx] };
+                    delete safeUser.password;
+                    safeUser.session_token = 'local-session-token';
+                    resolve({ success: true, user: safeUser });
+                } else {
+                    resolve({ success: false, error: "User profile not found" });
+                }
+                break;
+            }
+            default:
+                resolve({ success: false, error: "Unknown action" });
+        }
+    });
+}
+
+// --- 4.5. Floating Social Sidebar Injection (REMOVED) ---
+
+// --- 5. Site Settings Synced Site-Wide ---
+async function applySiteSettings() {
+    const settings = await window.apiCall('get_settings');
+    if (settings) {
+        // Cache settings in localStorage for instant retrieval on next page loads
+        try {
+            localStorage.setItem('settings', JSON.stringify(settings));
+        } catch (e) {}
+
+        // --- Maintenance Mode Redirection & Support Info Injection ---
+        const href = window.location.href.toLowerCase();
+        const pathname = window.location.pathname.toLowerCase();
+
+        const isAdminPage = href.includes('admin.html') || 
+                            href.includes('admin_login.html') || 
+                            pathname.endsWith('/admin') || 
+                            pathname.endsWith('/admin/') || 
+                            pathname.endsWith('/admin_login') || 
+                            pathname.endsWith('/admin_login/') ||
+                            pathname === 'admin' ||
+                            pathname === 'admin_login';
+
+        const isMaintenancePage = href.includes('maintenance.html') || 
+                                  pathname.endsWith('/maintenance') || 
+                                  pathname.endsWith('/maintenance/') || 
+                                  pathname === 'maintenance';
+
+        if (settings.maintenanceMode) {
+            if (!isAdminPage && !isMaintenancePage) {
+                window.location.replace('maintenance.html');
+                return;
+            }
+        } else {
+            if (isMaintenancePage) {
+                window.location.replace('index.html');
+                return;
+            }
+        }
+
+        if (isMaintenancePage) {
+            const emailEl = document.getElementById('maintenance-email');
+            if (emailEl && settings.contactEmail) {
+                emailEl.href = `mailto:${settings.contactEmail}`;
+                emailEl.innerText = settings.contactEmail;
+            }
+            const phoneEl = document.getElementById('maintenance-phone');
+            if (phoneEl && settings.contactPhone) {
+                phoneEl.href = `tel:${settings.contactPhone.replace(/\s+/g, '')}`;
+                phoneEl.innerText = settings.contactPhone;
+            }
+        }
+
+        if (settings.siteName) {
+            const brandEls = document.querySelectorAll('.site-logo-text');
+            brandEls.forEach(el => {
+                el.innerText = settings.siteName;
+            });
+            if (document.title.includes('DiginixIT |') || document.title.includes('DIGINIXIT')) {
+                const currentSuffix = document.title.split('|')[1] || '';
+                document.title = settings.siteName.replace('.', '') + ' |' + currentSuffix;
+            }
+        }
+
+        // Update sidebar social links dynamically
+        const lnLink = document.getElementById('sidebar-social-linkedin');
+        if (lnLink) {
+            lnLink.href = settings.linkedin || 'https://linkedin.com/';
+            lnLink.style.display = 'inline-flex';
+        }
+        const igLink = document.getElementById('sidebar-social-instagram');
+        if (igLink) {
+            igLink.href = settings.instagram || 'https://instagram.com/';
+            igLink.style.display = 'inline-flex';
+        }
+        const twLink = document.getElementById('sidebar-social-twitter');
+        if (twLink) {
+            twLink.href = settings.twitter || 'https://twitter.com/';
+            twLink.style.display = 'inline-flex';
+        }
+        const fbLink = document.getElementById('sidebar-social-facebook');
+        if (fbLink) {
+            fbLink.href = settings.facebook || 'https://facebook.com/';
+            fbLink.style.display = 'inline-flex';
+        }
+        const ytLink = document.getElementById('sidebar-social-youtube');
+        if (ytLink) {
+            ytLink.href = settings.youtube || 'https://youtube.com/';
+            ytLink.style.display = 'inline-flex';
+        }
+    }
+}
+
+// --- 6. Navbar Auth Status Management ---
+function updateNavbarAuth() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const desktopAuthContainer = document.getElementById('desktop-auth-container');
+    const mobileAuthContainer = document.getElementById('mobile-auth-container');
+
+    if (currentUser) {
+        const safeName = window.escapeHtml(currentUser.name);
+        if (desktopAuthContainer) {
+            desktopAuthContainer.innerHTML = `
+                <div class="flex items-center space-x-4">
+                    <a href="profile.html" class="text-sm font-medium text-secondary hover:text-primary transition-colors" id="nav-profile">Hello, ${safeName}</a>
+                    <button id="btn-signout" class="text-sm font-medium hover:text-secondary transition-colors">Sign Out</button>
+                </div>
+            `;
+            document.getElementById('btn-signout').addEventListener('click', handleSignOut);
+        }
+        if (mobileAuthContainer) {
+            mobileAuthContainer.innerHTML = `
+                <div class="text-center py-2 text-secondary font-medium"><a href="profile.html" class="hover:text-primary transition-colors">Hello, ${safeName}</a></div>
+                <button id="mobile-btn-signout" class="w-full text-center py-4 border border-border rounded-full font-medium hover:bg-surface transition-colors">Sign Out</button>
+            `;
+            document.getElementById('mobile-btn-signout').addEventListener('click', handleSignOut);
+        }
+    } else {
+        // Restore default navigation if signed out
+        if (desktopAuthContainer) {
+            desktopAuthContainer.innerHTML = `
+                <a href="auth.html?mode=signin" class="text-sm font-medium hover:text-secondary transition-colors" id="btn-signin">Sign In</a>
+                <div class="magnetic-wrap">
+                    <a href="auth.html?mode=signup" class="bg-primary text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-black transition-colors inline-block" id="btn-signup">Get Started</a>
+                </div>
+            `;
+        }
+        if (mobileAuthContainer) {
+            mobileAuthContainer.innerHTML = `
+                <a href="auth.html?mode=signin" class="w-full text-center py-4 border border-border rounded-full font-medium hover:bg-surface transition-colors" id="mobile-btn-signin">Sign In</a>
+                <a href="auth.html?mode=signup" class="w-full text-center py-4 bg-primary text-white rounded-full font-medium hover:bg-black transition-colors" id="mobile-btn-signup">Get Started</a>
+            `;
+        }
+    }
+}
+
+async function handleSignOut() {
+    await window.backendReady;
+    if (window.useSupabase) {
+        await window.supabase.auth.signOut();
+    }
+    localStorage.removeItem('currentUser');
+    window.location.href = './';
+}
+
+async function initializeAuth() {
+    await window.backendReady;
+    if (!window.useSupabase) return;
+
+    try {
+        const { data, error } = await window.supabase.auth.getSession();
+        if (error || !data.session) {
+            localStorage.removeItem('currentUser');
+            updateNavbarAuth();
+            return;
+        }
+
+        const verified = await verifySessionWithBackend(data.session);
+        if (verified) {
+            localStorage.setItem('currentUser', JSON.stringify(verified));
+            updateNavbarAuth();
+
+            // Link guest session visits to authenticated user
+            const sessionId = sessionStorage.getItem('session_id');
+            if (sessionId) {
+                await window.apiCall('associate_session_visits', {
+                    session_id: sessionId,
+                    email: verified.email
+                });
+                sessionStorage.setItem('user_logged_visit_tracked', verified.email);
+            }
+        } else {
+            await window.supabase.auth.signOut();
+            localStorage.removeItem('currentUser');
+            updateNavbarAuth();
+        }
+    } catch (e) {
+        console.error("Auth init exception:", e);
+    }
+}
+window.initializeAuth = initializeAuth;
+
+// --- 7. Mobile Hamburger Drawer Menu Toggle ---
+function initMobileMenu() {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (!hamburgerBtn || !mobileMenu) return;
+
+    hamburgerBtn.addEventListener('click', () => {
+        const isOpen = mobileMenu.classList.toggle('active');
+        if (isOpen) {
+            hamburgerBtn.innerHTML = `<i data-lucide="x" class="w-6 h-6"></i>`;
+        } else {
+            hamburgerBtn.innerHTML = `<i data-lucide="menu" class="w-6 h-6"></i>`;
+        }
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+}
+
+// --- 8. Highlight Active Page Link ---
+function highlightActiveNav() {
+    const currentPath = window.location.pathname;
+    const pageName = currentPath.substring(currentPath.lastIndexOf('/') + 1);
+
+    const navMap = {
+        'index.html': 'nav-home',
+        'services.html': 'nav-services',
+        'blog.html': 'nav-blog',
+        'article.html': 'nav-blog',
+        'profile.html': 'nav-profile',
+        'contact.html': 'nav-contact'
+    };
+
+    const activeId = navMap[pageName] || 'nav-home';
+    const activeLink = document.getElementById(activeId);
+    if (activeLink) {
+        activeLink.classList.add('active-nav-link');
+    }
+}
+
+// Navbar scroll background change
+window.addEventListener('scroll', () => {
+    const nav = document.getElementById('navbar');
+    if (nav) {
+        if (window.scrollY > 50) {
+            nav.classList.add('glass-nav');
+        } else {
+            nav.classList.remove('glass-nav');
+        }
+    }
+});
+
+// Run shared initialization on load
+document.addEventListener('DOMContentLoaded', () => {
+    initLocalStorage();
+    updateNavbarAuth();
+    initMobileMenu();
+    highlightActiveNav();
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    // Perform database-dependent site adjustments in the background once ready
+    (async () => {
+        await window.backendReady;
+        if (window.useSupabase) {
+            await initializeAuth();
+        }
+        await applySiteSettings();
+
+        // Retry Queue processor
+        async function processTrackingQueue() {
+            if (!window.useSupabase) return; // Do not process/clear queue if running in local storage fallback mode
+            let queue = JSON.parse(localStorage.getItem('visit_tracking_queue') || '[]');
+            if (queue.length === 0) return;
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+            const remainingQueue = [];
+            for (const visit of queue) {
+                try {
+                    const res = await window.apiCall('increment_user_visit', { 
+                        email: visit.email, 
+                        session_id: visit.session_id 
+                    });
+                    if (!res || res.success !== true) {
+                        remainingQueue.push(visit);
+                    }
+                } catch (e) {
+                    console.error("Queue tracking attempt failed:", e);
+                    remainingQueue.push(visit);
+                }
+            }
+            localStorage.setItem('visit_tracking_queue', JSON.stringify(remainingQueue));
+        }
+
+        window.addEventListener('online', processTrackingQueue);
+        setInterval(processTrackingQueue, 15000);
+
+        async function getVisitorInfo() {
+            let ip = sessionStorage.getItem('visitor_ip');
+            let country = sessionStorage.getItem('visitor_country');
+            if (!ip || !country) {
+                try {
+                    const response = await fetch('https://ipapi.co/json/');
+                    if (response.ok) {
+                        const data = await response.json();
+                        ip = data.ip || '127.0.0.1';
+                        country = data.country_name || 'Unknown';
+                        sessionStorage.setItem('visitor_ip', ip);
+                        sessionStorage.setItem('visitor_country', country);
+                    }
+                } catch (e) {
+                    console.warn("Visitor IP API lookup failed:", e);
+                }
+            }
+            // Device detection
+            let device = 'Desktop';
+            const ua = navigator.userAgent || '';
+            if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
+                device = /iPad/i.test(ua) ? 'Tablet' : 'Mobile';
+            }
+            // Page URL detection
+            const pageUrl = window.location.pathname.split('/').pop() || 'index.html';
+            
+            return {
+                ip_address: ip || '127.0.0.1',
+                country: country || 'Unknown',
+                device: device,
+                page_url: '/' + pageUrl,
+                user_agent: ua
+            };
+        }
+
+        async function recordVisit(email = null) {
+            const sessionId = sessionStorage.getItem('session_id');
+            const info = await getVisitorInfo();
+            const visitPayload = { email, session_id: sessionId, ...info };
+            try {
+                if (!window.useSupabase) {
+                    // Log locally for offline mode fallback, but raise error so it gets queued
+                    apiCallLocalStorageFallback('increment_user_visit', visitPayload);
+                    throw new Error("Supabase not active, queuing visit");
+                }
+                const res = await window.apiCall('increment_user_visit', visitPayload);
+                if (res && res.success === true) {
+                    sessionStorage.setItem('user_visit_tracked', 'true');
+                    if (email) {
+                        sessionStorage.setItem('user_logged_visit_tracked', email);
+                    }
+                } else {
+                    throw new Error("Tracking write failed");
+                }
+            } catch (e) {
+                console.error("Failed to record website visit, queuing for retry:", e);
+                let queue = JSON.parse(localStorage.getItem('visit_tracking_queue') || '[]');
+                const exists = queue.some(q => q.session_id === sessionId && q.email === email);
+                if (!exists) {
+                    queue.push(visitPayload);
+                    localStorage.setItem('visit_tracking_queue', JSON.stringify(queue));
+                }
+            }
+        }
+
+        // Count visit once per session for all visitors when they visit public client pages
+        const path = window.location.pathname.toLowerCase();
+        const isClientPage = !path.includes('admin.html') && !path.includes('admin_login.html');
+        if (isClientPage) {
+            // Ignore automated bots/crawlers to prevent visits count inflation
+            const botPattern = /bot|crawler|spider|crawling|slurp|transcoder|pingdom|uptime|lighthouse/i;
+            if (typeof navigator !== 'undefined' && navigator.userAgent && botPattern.test(navigator.userAgent)) {
+                return;
+            }
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            const email = currentUser ? currentUser.email : null;
+            
+            // Track page view after 3 seconds of active session to filter out short bounces
+            setTimeout(async () => {
+                await recordVisit(email);
+            }, 3000);
+        }
+
+        // Also process tracking queue initially
+        processTrackingQueue();
+    })();
+});

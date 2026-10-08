@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-adsense-account" content="ca-pub-3363493243397953">
+    <title>DiginixIT | Admin Console</title>
+    <meta name="description"
+        content="Private administration console for managing DiginixIT analytics, blog insights, and user database.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://diginixit.com/admin.html">
+
+    <!-- DNS Prefetch & Preconnect -->
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <meta name="color-scheme" content="light">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Core Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" defer></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
+        defer></script>
+
+    <!-- DOMPurify for XSS Protection -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+
+<body style="margin:0; background:#fff; font-family:'Inter',sans-serif; color:#171717;">
+
+    <!-- Guard Overlay Screen -->
+    <div id="admin-guard" class="admin-guard">
+        <div class="admin-guard-spinner"></div>
+        <p class="admin-guard-text">Establishing secure session</p>
+    </div>
+
+    <!-- Security Check (Redirect if not authenticated) -->
+    <script>
+        window.csrfToken = null;
+
+        async function fetchCSRFToken() {
+            const { data, error } = await window.supabase.rpc('generate_csrf_token');
+            if (error || !data || data.length === 0) {
+                console.error('Failed to generate CSRF token:', error);
+                window.showToast('Security token generation failed. Please reload the page.', 'error');
+                return false;
+            }
+            window.csrfToken = data[0].csrf_token;
+            return true;
+        }
+        window.fetchCSRFToken = fetchCSRFToken;
+
+        (async function () {
+            const checkReady = setInterval(async () => {
+                if (window.backendReady) {
+                    clearInterval(checkReady);
+                    await window.backendReady;
+
+                    if (!window.useSupabase) {
+                        window.location.replace('admin_login.html');
+                        return;
+                    }
+
+                    const { data: { session }, error } = await window.supabase.auth.getSession();
+                    if (error || !session || !session.user) {
+                        window.location.replace('admin_login.html');
+                        return;
+                    }
+
+                    // Verify admin role on backend
+                    const { data: adminCheck, error: adminError } = await window.supabase
+                        .rpc('verify_admin_access', {
+                            p_user_email: session.user.email
+                        });
+
+                    const is_admin = adminCheck && adminCheck.length > 0 && adminCheck[0].is_admin;
+                    if (adminError || !is_admin) {
+                        await window.supabase.auth.signOut();
+                        window.showToast('Access Denied. Admin privileges required.', 'error');
+                        setTimeout(() => { window.location.replace('admin_login.html'); }, 1000);
+                        return;
+                    }
+
+                    // Generate first CSRF token
+                    const tokenReady = await fetchCSRFToken();
+                    if (!tokenReady) {
+                        await window.supabase.auth.signOut();
+                        window.location.replace('admin_login.html');
+                        return;
+                    }
+
+                    const guard = document.getElementById('admin-guard');
+                    if (guard) guard.remove();
+                    const app = document.getElementById('admin-app');
+                    if (app) app.style.display = 'grid';
+                }
+            }, 50);
+        })();
+    </script>
+
+    <!-- Application Shell -->
+    <div id="admin-app" class="admin-shell" style="display:none;">
+
+        <!-- ========== TOP BAR ========== -->
+        <header class="admin-topbar">
+            <div class="admin-topbar-left">
+                <button class="admin-menu-toggle" onclick="toggleMobileSidebar()" aria-label="Toggle navigation">
+                    <i data-lucide="menu" class="w-4 h-4"></i>
+                </button>
+                <span class="admin-topbar-wordmark">DIGINIXIT.</span>
+            </div>
+            <div class="admin-topbar-right">
+                <a href="./" target="_blank" class="admin-topbar-btn" aria-label="Open Site" title="Open Site">
+                    <i data-lucide="external-link" class="w-4 h-4"></i>
+                </a>
+                <button onclick="handleAdminSignOut()" class="admin-topbar-btn admin-topbar-btn--danger"
+                    aria-label="Sign Out" title="Sign Out">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- ========== SIDEBAR ========== -->
+        <div class="admin-sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <nav class="admin-sidebar-nav">
+                <button class="admin-sidebar-item admin-tab-btn" data-tab="analytics" data-state="active">
+                    <i data-lucide="bar-chart-2" class="admin-sidebar-item-icon"></i>
+                    <span class="admin-sidebar-item-label">Analytics</span>
+                </button>
+                <button class="admin-sidebar-item admin-tab-btn" data-tab="blog" data-state="inactive">
+                    <i data-lucide="book-open" class="admin-sidebar-item-icon"></i>
+                    <span class="admin-sidebar-item-label">Blog</span>
+                </button>
+                <button class="admin-sidebar-item admin-tab-btn" data-tab="users" data-state="inactive">
+                    <i data-lucide="users" class="admin-sidebar-item-icon"></i>
+                    <span class="admin-sidebar-item-label">Users</span>
+                </button>
+                <button class="admin-sidebar-item admin-tab-btn" data-tab="settings" data-state="inactive">
+                    <i data-lucide="settings" class="admin-sidebar-item-icon"></i>
+                    <span class="admin-sidebar-item-label">Settings</span>
+                </button>
+            </nav>
+            <button class="admin-sidebar-collapse" onclick="toggleSidebarCollapse()" title="Collapse sidebar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="11 17 6 12 11 7"></polyline>
+                    <polyline points="18 17 13 12 18 7"></polyline>
+                </svg>
+            </button>
+        </aside>
+
+        <!-- ========== CONTENT WELL ========== -->
+        <main class="admin-content">
+
+            <!-- ==========================================
+                 TAB 1: ANALYTICS
+                 ========================================== -->
+            <div id="tab-analytics" class="admin-tab-content active">
+                <div class="admin-content-inner">
+
+                    <!-- Page Header -->
+                    <div class="admin-page-header admin-page-header--inline">
+                        <div>
+                            <h1 class="admin-page-title">Analytics</h1>
+                            <p class="admin-page-subtitle">Usage diagnostics and performance metrics</p>
+                        </div>
+                        <div class="admin-page-actions">
+                            <button onclick="exportAnalyticsPDF()" class="ui-btn ui-btn-primary" aria-label="Export PDF"
+                                title="Export PDF">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Date Controls -->
+                    <div class="admin-toolbar" id="analytics-timeline-bar" style="gap: 12px; flex-wrap: wrap; overflow: visible;">
+                        <!-- Presets Dropdown styled with Filter Icon -->
+                        <div class="admin-filter-dropdown" style="position: relative; display: inline-flex; align-items: center;">
+                            <button type="button" id="analytics-preset-btn" class="admin-date-input" style="padding-left: 30px; padding-right: 32px; background: #fff; cursor: pointer; border-radius: var(--radius-sm); border: 1px solid var(--color-hairline); font-size: 13px; height: 32px; font-family: inherit; display: inline-flex; align-items: center; min-width: 120px; text-align: left; position: relative;" onclick="toggleFilterMenu(event)">
+                                <span id="analytics-preset-label">All Time</span>
+                            </button>
+                             <i data-lucide="filter" style="position: absolute; left: 10px; width: 14px; height: 14px; color: var(--color-ink-mute); pointer-events: none;"></i>
+                            <i data-lucide="chevron-down" style="position: absolute; right: 10px; width: 12px; height: 12px; color: var(--color-ink-mute); pointer-events: none;"></i>
+                            
+                            <!-- Custom System Design Dropdown Menu Dialog -->
+                            <div id="analytics-filter-menu" class="admin-dropdown-menu" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 160px; background: #fff; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); z-index: 100; padding: 6px 0;">
+                                <button type="button" class="admin-filter-item" onclick="selectFilterPreset('today')">Today</button>
+                                <button type="button" class="admin-filter-item" onclick="selectFilterPreset('yesterday')">Yesterday</button>
+                                <button type="button" class="admin-filter-item" onclick="selectFilterPreset('3d')">Last 3 Days</button>
+                                <button type="button" class="admin-filter-item" onclick="selectFilterPreset('7d')">Last 7 Days</button>
+                                <button type="button" class="admin-filter-item" onclick="selectFilterPreset('30d')">Last 30 Days</button>
+                                <button type="button" class="admin-filter-item" onclick="selectFilterPreset('90d')">Last 90 Days</button>
+                                <button type="button" class="admin-filter-item" onclick="selectFilterPreset('1y')">Last Year</button>
+                                <button type="button" class="admin-filter-item active" onclick="selectFilterPreset('all')">All Time</button>
+                            </div>
+                        </div>
+
+                        <!-- Divider -->
+                        <span class="admin-toolbar-sep"></span>
+
+                        <!-- Custom Date Pickers -->
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="text" id="analytics-start-date" class="admin-date-input" readonly style="width: 100px; text-align: center; cursor: pointer; font-family: inherit;" placeholder="Start Date" onclick="openCustomDateModal('start')">
+                            <span class="admin-toolbar-label">→</span>
+                            <input type="text" id="analytics-end-date" class="admin-date-input" readonly style="width: 100px; text-align: center; cursor: pointer; font-family: inherit;" placeholder="End Date" onclick="openCustomDateModal('end')">
+                        </div>
+                    </div>
+
+                    <!-- Stat Bar -->
+                    <div class="admin-stat-bar">
+                        <div class="admin-stat-item">
+                            <div class="admin-stat-label">Active Users</div>
+                            <div class="admin-stat-value" id="stat-users">0</div>
+                            <div class="admin-stat-change" id="stat-users-change">0% vs last period</div>
+                        </div>
+                        <div class="admin-stat-item">
+                            <div class="admin-stat-label">Total Visits</div>
+                            <div class="admin-stat-value" id="stat-visits">0</div>
+                            <div class="admin-stat-change" id="stat-visits-change">0% vs last period</div>
+                        </div>
+                        <div class="admin-stat-item">
+                            <div class="admin-stat-label">Bounce Rate</div>
+                            <div class="admin-stat-value" id="stat-session">0%</div>
+                            <div class="admin-stat-change" id="stat-session-change">0% vs last period</div>
+                        </div>
+                        <div class="admin-stat-item">
+                            <div class="admin-stat-label">Articles Read</div>
+                            <div class="admin-stat-value" id="stat-reads">0</div>
+                            <div class="admin-stat-change" id="stat-reads-change">0% vs last period</div>
+                        </div>
+                    </div>
+
+                    <!-- Traffic Chart -->
+                    <div class="admin-chart-section">
+                        <div class="admin-chart-header">
+                            <h3 class="admin-chart-title">Website Traffic</h3>
+                            <span class="admin-chart-meta" id="traffic-period-label">Last 30 Days</span>
+                        </div>
+                        <div class="admin-chart-box">
+                            <canvas id="adminVisitsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Two-column chart row -->
+                    <div class="admin-chart-grid">
+                        <div class="admin-chart-section">
+                            <div class="admin-chart-header">
+                                <h3 class="admin-chart-title">Device Breakdown</h3>
+                            </div>
+                            <div class="admin-chart-box" style="height: 210px;">
+                                <canvas id="adminDeviceChart"></canvas>
+                            </div>
+                            <div class="admin-device-legend" id="device-legend"></div>
+                        </div>
+                        <div class="admin-chart-section">
+                            <div class="admin-chart-header">
+                                <h3 class="admin-chart-title">User Acquisitions</h3>
+                            </div>
+                            <div class="admin-chart-box">
+                                <canvas id="adminUsersChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Two-column chart row -->
+                    <div class="admin-chart-grid">
+                        <div class="admin-chart-section">
+                            <div class="admin-chart-header">
+                                <h3 class="admin-chart-title">Bounce Rate Trend</h3>
+                            </div>
+                            <div class="admin-chart-box">
+                                <canvas id="adminRetentionChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="admin-chart-section">
+                            <div class="admin-chart-header">
+                                <h3 class="admin-chart-title">Top Pages</h3>
+                            </div>
+                            <div class="admin-chart-box">
+                                <canvas id="adminTopPagesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Two-column chart row -->
+                    <div class="admin-chart-grid">
+                        <div class="admin-chart-section">
+                            <div class="admin-chart-header">
+                                <h3 class="admin-chart-title">Geographic Locations</h3>
+                            </div>
+                            <div class="admin-chart-box">
+                                <canvas id="adminLocationsChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="admin-chart-section">
+                            <div class="admin-chart-header">
+                                <h3 class="admin-chart-title">Articles Read Trend</h3>
+                            </div>
+                            <div class="admin-chart-box">
+                                <canvas id="adminBounceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Visitors -->
+                    <div class="admin-chart-section">
+                        <div class="admin-chart-header">
+                            <h3 class="admin-chart-title">Recent Visitors</h3>
+                        </div>
+                        <div class="admin-visitors-list" id="recent-visitors-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 TAB 2: BLOG MANAGER
+                 ========================================== -->
+            <div id="tab-blog" class="admin-tab-content">
+                <div class="admin-content-inner">
+
+                    <div class="admin-page-header admin-page-header--inline">
+                        <div>
+                            <h1 class="admin-page-title">Blog</h1>
+                            <p class="admin-page-subtitle">Publish and manage articles</p>
+                        </div>
+                        <div class="admin-page-actions">
+                            <button onclick="openArticleEditor()" class="ui-btn ui-btn-primary" aria-label="New Article"
+                                title="New Article">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filter Bar -->
+                    <div class="admin-toolbar">
+                        <button class="admin-filter-btn blog-filter-btn active-filter" data-filter="all">All</button>
+                        <button class="admin-filter-btn blog-filter-btn" data-filter="published">Published</button>
+                        <button class="admin-filter-btn blog-filter-btn" data-filter="draft">Drafts</button>
+                    </div>
+
+                    <!-- Blog Table -->
+                    <div class="admin-section admin-section--flush">
+                        <div class="ui-table-container" style="border:none;">
+                            <table class="ui-table">
+                                <thead>
+                                    <tr class="ui-tr-head">
+                                        <th class="ui-th">Title</th>
+                                        <th class="ui-th">Category</th>
+                                        <th class="ui-th">Author</th>
+                                        <th class="ui-th">Status</th>
+                                        <th class="ui-th">Date</th>
+                                        <th class="ui-th" style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="blog-table-body">
+                                    <!-- Dynamic blog rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 TAB 3: ARTICLE EDITOR
+                 ========================================== -->
+            <div id="tab-article-editor" class="admin-tab-content">
+                <div class="admin-content-inner">
+
+                    <div class="admin-page-header admin-page-header--inline" style="align-items: center; display: flex; justify-content: space-between; margin-bottom: 24px;">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <button type="button" onclick="closeArticleEditor()" class="ui-btn ui-btn-outline ui-btn-sm" style="padding: 0; min-width: auto; height: 32px; width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);" aria-label="Back" title="Back">
+                                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                            </button>
+                            <div>
+                                <h1 id="article-editor-page-title" class="admin-page-title" style="margin: 0; font-size: 24px; line-height: 1.2;">New Article</h1>
+                                <p class="admin-page-subtitle" style="margin-top: 2px;">Rich text editor</p>
+                            </div>
+                        </div>
+                        <div class="admin-page-actions" style="display: flex; gap: 8px;">
+                            <button type="button" onclick="handleBlogSaveAsDraft()" class="ui-btn ui-btn-outline ui-btn-sm">
+                                Save Draft
+                            </button>
+                            <button type="button" onclick="handleBlogSave(event)" class="ui-btn ui-btn-primary ui-btn-sm">
+                                Publish
+                            </button>
+                        </div>
+                    </div>
+
+                    <form id="article-editor-form" onsubmit="handleBlogSave(event)">
+                        <input type="hidden" id="edit-post-id">
+
+                        <!-- Metadata Fields -->
+                        <div class="admin-section" style="margin-bottom:16px;">
+                            <div class="ui-form-field" style="margin-bottom:16px;">
+                                <label for="blog-title" class="ui-label">Title <span
+                                        class="ui-required">*</span></label>
+                                <input type="text" id="blog-title" class="ui-input" required
+                                    placeholder="e.g. Navigating Modern Web Architecture">
+                            </div>
+
+                            <div class="admin-form-row" style="margin-bottom:16px;">
+                                <div class="ui-form-field">
+                                    <label for="blog-category" class="ui-label">Category <span
+                                            class="ui-required">*</span></label>
+                                    <input type="text" id="blog-category" class="ui-input" required
+                                        placeholder="e.g. Tech, AI, Design">
+                                </div>
+                                <div class="ui-form-field">
+                                    <label for="blog-author" class="ui-label">Author <span
+                                            class="ui-required">*</span></label>
+                                    <input type="text" id="blog-author" class="ui-input" required
+                                        placeholder="e.g. Alex Rivers">
+                                </div>
+                            </div>
+
+                            <div class="ui-form-field">
+                                <label for="blog-summary" class="ui-label">Excerpt <span
+                                        class="ui-required">*</span></label>
+                                <textarea id="blog-summary" class="ui-input ui-textarea" required
+                                    placeholder="Short summary for cards and search results..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Editor -->
+                        <div class="admin-section admin-section--flush">
+                            <!-- Toolbar -->
+                            <div id="msword-toolbar" class="admin-editor-toolbar">
+                                <button type="button" class="toolbar-btn" data-cmd="undo" title="Undo (Ctrl+Z)"><i
+                                        data-lucide="undo" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="redo" title="Redo (Ctrl+Y)"><i
+                                        data-lucide="redo" class="w-4 h-4"></i></button>
+                                <span class="admin-editor-toolbar-sep"></span>
+
+                                <select id="toolbar-block-format" class="admin-editor-block-select" title="Paragraph Format">
+                                    <option value="p">Paragraph</option>
+                                    <option value="h1">Heading 1</option>
+                                    <option value="h2">Heading 2</option>
+                                    <option value="h3">Heading 3</option>
+                                </select>
+                                <span class="admin-editor-toolbar-sep"></span>
+
+                                <button type="button" class="toolbar-btn" data-cmd="bold"
+                                    title="Bold (Ctrl+B)"><i data-lucide="bold" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="italic"
+                                    title="Italic (Ctrl+I)"><i data-lucide="italic" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="underline" title="Underline (Ctrl+U)"><i
+                                        data-lucide="underline" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="strikeThrough"
+                                    title="Strikethrough (Ctrl+Shift+X)"><i data-lucide="strikethrough" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="subscript"
+                                    title="Subscript (Ctrl+Shift+S)"><i data-lucide="subscript" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="superscript"
+                                    title="Superscript (Ctrl+Shift+P)"><i data-lucide="superscript" class="w-4 h-4"></i></button>
+                                <span class="admin-editor-toolbar-sep"></span>
+
+                                <label class="toolbar-btn" title="Text Color" style="position: relative; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 4px; cursor: pointer; transition: all 0.15s ease;">
+                                    <i data-lucide="baseline" class="w-4 h-4"></i>
+                                    <input type="color" id="toolbar-forecolor" value="#000000"
+                                        style="position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; margin: 0; padding: 0; cursor: pointer;">
+                                </label>
+                                <label class="toolbar-btn" title="Highlight Color" style="position: relative; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 4px; cursor: pointer; transition: all 0.15s ease;">
+                                    <i data-lucide="highlighter" class="w-4 h-4"></i>
+                                    <input type="color" id="toolbar-backcolor" value="#ffff00"
+                                        style="position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; margin: 0; padding: 0; cursor: pointer;">
+                                </label>
+                                <span class="admin-editor-toolbar-sep"></span>
+
+                                <button type="button" class="toolbar-btn" data-cmd="justifyLeft" title="Align Left"><i
+                                        data-lucide="align-left" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="justifyCenter" title="Align Center"><i
+                                        data-lucide="align-center" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="justifyRight" title="Align Right"><i
+                                        data-lucide="align-right" class="w-4 h-4"></i></button>
+                                <span class="admin-editor-toolbar-sep"></span>
+
+                                <button type="button" class="toolbar-btn" data-cmd="insertUnorderedList"
+                                    title="Bullets (Ctrl+Shift+L)"><i data-lucide="list" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-tool="insertOrderedList" onclick="editorInsertOrderedList()"
+                                    title="Numbers (Ctrl+Shift+N)"><i data-lucide="list-ordered" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="outdent" title="Outdent (Shift+Tab)"><i
+                                        data-lucide="indent-decrease" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-cmd="indent" title="Indent (Tab)"><i
+                                        data-lucide="indent-increase" class="w-4 h-4"></i></button>
+                                <span class="admin-editor-toolbar-sep"></span>
+
+                                <button type="button" class="toolbar-btn" data-tool="link" onclick="editorPromptLink()"
+                                    title="Link (Ctrl+K)"><i data-lucide="link" class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-tool="image"
+                                    onclick="editorPromptImage()" title="Image (Ctrl+Shift+I)"><i data-lucide="image"
+                                        class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-tool="table"
+                                    onclick="editorPromptTable()" title="Table (Ctrl+Shift+T)"><i data-lucide="table"
+                                        class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-tool="blockquote"
+                                    onclick="editorInsertBlockquote()" title="Blockquote (Ctrl+Shift+Q)"><i data-lucide="quote"
+                                        class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-tool="accordion"
+                                    onclick="editorInsertAccordion()" title="Add FAQ Accordion (Ctrl+Shift+F)"><i data-lucide="help-circle"
+                                        class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-tool="borders"
+                                    onclick="editorToggleBorder()" title="Borders (Ctrl+Shift+B)"><i data-lucide="square"
+                                        class="w-4 h-4"></i></button>
+                                <button type="button" class="toolbar-btn" data-tool="diagram"
+                                    onclick="openDiagramModal()" title="Diagram"><i data-lucide="workflow"
+                                        class="w-4 h-4"></i></button>
+                                <span class="admin-editor-toolbar-sep"></span>
+
+                                <button type="button" class="toolbar-btn" id="toggle-source-mode-btn"
+                                    onclick="toggleEditorSourceMode()" title="Toggle HTML Source"><i data-lucide="code-2"
+                                        class="w-4 h-4"></i></button>
+                            </div>
+
+                            <!-- Editor Surface -->
+                            <div class="admin-editor-surface">
+                                <div id="article-editor-area" contenteditable="true" class="article-writer-content"
+                                    style="min-height:360px;max-height:600px;overflow-y:auto;font-size:16px;line-height:1.6;color:var(--color-ink);">
+                                    <p>Start writing your article here...</p>
+                                </div>
+                                <textarea id="article-source-area" class="admin-editor-source hidden"></textarea>
+                            </div>
+
+                            <!-- Status Bar -->
+                            <div class="admin-editor-bar">
+                                <div class="admin-editor-bar-stats">
+                                    <span id="editor-word-count">0 words</span>
+                                    <span id="editor-char-count">0 characters</span>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 TAB 4: USER MANAGEMENT
+                 ========================================== -->
+            <div id="tab-users" class="admin-tab-content">
+                <div class="admin-content-inner">
+
+                    <div class="admin-page-header admin-page-header--inline">
+                        <div>
+                            <h1 class="admin-page-title">Users</h1>
+                            <p class="admin-page-subtitle">Manage accounts and access</p>
+                        </div>
+                        <div class="admin-page-actions">
+                            <button onclick="exportUsersPDF()" class="ui-btn ui-btn-primary" aria-label="Export PDF"
+                                title="Export PDF">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="admin-toolbar" id="users-timeline-bar" style="gap: 12px; flex-wrap: wrap; overflow: visible;">
+                        <input type="text" id="users-search-input" placeholder="Search name or email..."
+                            class="admin-date-input" style="width:200px; font-family: inherit;">
+                        
+                        <!-- Divider -->
+                        <span class="admin-toolbar-sep"></span>
+
+                        <!-- Presets Dropdown styled with Filter Icon -->
+                        <div class="admin-filter-dropdown" style="position: relative; display: inline-flex; align-items: center;">
+                            <button type="button" id="users-preset-btn" class="admin-date-input" style="padding-left: 30px; padding-right: 32px; background: #fff; cursor: pointer; border-radius: var(--radius-sm); border: 1px solid var(--color-hairline); font-size: 13px; height: 32px; font-family: inherit; display: inline-flex; align-items: center; min-width: 120px; text-align: left; position: relative;" onclick="toggleUsersFilterMenu(event)">
+                                <span id="users-preset-label">All Time</span>
+                            </button>
+                            <i data-lucide="filter" style="position: absolute; left: 10px; width: 14px; height: 14px; color: var(--color-ink-mute); pointer-events: none;"></i>
+                            <i data-lucide="chevron-down" style="position: absolute; right: 10px; width: 12px; height: 12px; color: var(--color-ink-mute); pointer-events: none;"></i>
+                            
+                            <!-- Custom System Design Dropdown Menu Dialog -->
+                            <div id="users-filter-menu" class="admin-dropdown-menu" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 160px; background: #fff; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); z-index: 100; padding: 6px 0;">
+                                <button type="button" class="admin-filter-item" onclick="selectUsersFilterPreset('today')">Today</button>
+                                <button type="button" class="admin-filter-item" onclick="selectUsersFilterPreset('yesterday')">Yesterday</button>
+                                <button type="button" class="admin-filter-item" onclick="selectUsersFilterPreset('last-7-days')">Last 7 Days</button>
+                                <button type="button" class="admin-filter-item" onclick="selectUsersFilterPreset('last-30-days')">Last 30 Days</button>
+                                <button type="button" class="admin-filter-item" onclick="selectUsersFilterPreset('this-month')">This Month</button>
+                                <button type="button" class="admin-filter-item" onclick="selectUsersFilterPreset('last-month')">Last Month</button>
+                                <button type="button" class="admin-filter-item active" onclick="selectUsersFilterPreset('all-time')">All Time</button>
+                            </div>
+                        </div>
+
+                        <!-- Divider -->
+                        <span class="admin-toolbar-sep"></span>
+
+                        <!-- Custom Date Pickers -->
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="text" id="users-start-date" class="admin-date-input" readonly style="width: 100px; text-align: center; cursor: pointer; font-family: inherit;" placeholder="Start Date" onclick="openUsersCustomDateModal('start')">
+                            <span class="admin-toolbar-label">→</span>
+                            <input type="text" id="users-end-date" class="admin-date-input" readonly style="width: 100px; text-align: center; cursor: pointer; font-family: inherit;" placeholder="End Date" onclick="openUsersCustomDateModal('end')">
+                        </div>
+                    </div>
+
+                    <!-- Users Table -->
+                    <div class="admin-section admin-section--flush">
+                        <div class="ui-table-container" style="border:none;">
+                            <table class="ui-table">
+                                <thead>
+                                    <tr class="ui-tr-head">
+                                        <th class="ui-th">Name</th>
+                                        <th class="ui-th">Email</th>
+                                        <th class="ui-th">Joined</th>
+                                        <th class="ui-th">Visits</th>
+                                        <th class="ui-th">Status</th>
+                                        <th class="ui-th" style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body">
+                                    <!-- Dynamic user rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination Wrapper -->
+                        <div id="users-pagination" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-top: 1px solid var(--color-hairline); background: #fff; border-bottom-left-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md);">
+                            <div style="font-size: 12px; color: var(--color-ink-mute); font-weight: 500;" id="users-pagination-info">
+                                Showing 0 to 0 of 0 users
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center;" id="users-pagination-buttons">
+                                <!-- Dynamic pagination buttons -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 TAB 5: SETTINGS
+                 ========================================== -->
+            <div id="tab-settings" class="admin-tab-content">
+                <div class="admin-content-inner">
+
+                    <div class="admin-page-header">
+                        <div>
+                            <h1 class="admin-page-title">Settings</h1>
+                            <p class="admin-page-subtitle">Platform configuration</p>
+                        </div>
+                    </div>
+
+                    <div class="admin-section">
+                        <form onsubmit="handleSettingsUpdate(event)" class="admin-form">
+                            <div class="admin-form-group">
+                                <div class="ui-form-field" style="margin-bottom:16px;">
+                                    <label for="settings-sitename" class="ui-label">Brand Name</label>
+                                    <input type="text" id="settings-sitename" class="ui-input" required>
+                                </div>
+
+                                <div class="ui-form-field" style="margin-bottom:16px;">
+                                    <label for="settings-email" class="ui-label">Contact Email</label>
+                                    <input type="email" id="settings-email" class="ui-input" required>
+                                </div>
+
+                                <div class="ui-form-field" style="margin-bottom:16px;">
+                                    <label for="settings-phone" class="ui-label">Phone Number</label>
+                                    <input type="text" id="settings-phone" class="ui-input"
+                                        placeholder="+92 300 7960300">
+                                </div>
+                            </div>
+
+                            <div class="admin-section-header" style="margin-top:24px;">
+                                <div class="admin-section-title">Social Links</div>
+                            </div>
+
+                            <div class="admin-form-group">
+                                <div class="ui-form-field" style="margin-bottom:16px;">
+                                    <label for="settings-linkedin" class="ui-label">LinkedIn</label>
+                                    <input type="url" id="settings-linkedin" class="ui-input">
+                                </div>
+
+                                <div class="ui-form-field" style="margin-bottom:16px;">
+                                    <label for="settings-instagram" class="ui-label">Instagram</label>
+                                    <input type="url" id="settings-instagram" class="ui-input">
+                                </div>
+
+                                <div class="ui-form-field" style="margin-bottom:16px;">
+                                    <label for="settings-twitter" class="ui-label">Twitter / X</label>
+                                    <input type="url" id="settings-twitter" class="ui-input">
+                                </div>
+
+                                <div class="ui-form-field" style="margin-bottom:16px;">
+                                    <label for="settings-facebook" class="ui-label">Facebook</label>
+                                    <input type="url" id="settings-facebook" class="ui-input">
+                                </div>
+
+                                <div class="ui-form-field" style="margin-bottom:16px;">
+                                    <label for="settings-youtube" class="ui-label">YouTube</label>
+                                    <input type="url" id="settings-youtube" class="ui-input">
+                                </div>
+                            </div>
+
+                            <div class="admin-form-toggle">
+                                <div>
+                                    <div class="admin-form-toggle-label">Maintenance Mode</div>
+                                    <div class="admin-form-toggle-help">Lock client pages behind maintenance screen
+                                    </div>
+                                </div>
+                                <input type="checkbox" id="settings-maintenance"
+                                    style="width:20px;height:20px;accent-color:#3ecf8e;cursor:pointer;">
+                            </div>
+
+                            <button type="submit" class="ui-btn ui-btn-primary" style="width:100%;margin-top:24px;">
+                                Save Configuration
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Diagram Insert Modal -->
+    <div id="diagram-modal" style="display:none;" class="admin-modal-overlay">
+        <div class="admin-modal">
+            <div class="admin-modal-header">
+                <div>
+                    <h3 class="admin-modal-title">Insert Diagram</h3>
+                    <p class="admin-modal-subtitle">Paste or type your diagram. Spaces and line breaks are preserved.
+                    </p>
+                </div>
+                <button onclick="closeDiagramModal()" class="admin-modal-close">&times;</button>
+            </div>
+            <div>
+                <textarea id="diagram-textarea" class="ui-input"
+                    style="font-family:var(--font-mono);font-size:12px;min-height:200px;"
+                    placeholder="[Human Intent] -> [System Agent]"></textarea>
+            </div>
+            <div class="admin-modal-footer">
+                <button onclick="closeDiagramModal()" class="ui-btn ui-btn-outline">Cancel</button>
+                <button onclick="insertDiagramToEditor()" class="ui-btn ui-btn-primary">Insert</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Date Range Picker Modal -->
+    <div id="custom-date-modal" style="display:none;" class="admin-modal-overlay">
+        <div class="admin-modal" style="max-width: 380px; padding: 20px;">
+            <div class="admin-modal-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 class="admin-modal-title">Select Date Range</h3>
+                </div>
+                <button onclick="closeCustomDateModal()" class="admin-modal-close">&times;</button>
+            </div>
+            
+            <div class="calendar-container">
+                <!-- Month Navigation -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <button type="button" id="cal-prev-month" class="ui-btn ui-btn-outline ui-btn-sm" style="padding: 4px 8px;">&larr;</button>
+                    <span id="cal-month-year" style="font-weight: 600; font-size: 14px;"></span>
+                    <button type="button" id="cal-next-month" class="ui-btn ui-btn-outline ui-btn-sm" style="padding: 4px 8px;">&rarr;</button>
+                </div>
+                
+                <!-- Days Header (Mon, Tue, etc.) -->
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; font-weight: 600; color: var(--color-ink-mute); margin-bottom: 8px;">
+                    <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+                </div>
+                
+                <!-- Days Grid -->
+                <div id="cal-days-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center;">
+                    <!-- Filled dynamically in JS -->
+                </div>
+            </div>
+            
+            <div style="margin-top: 16px; font-size: 12px; color: var(--color-ink-mute); text-align: center;" id="cal-selection-preview">
+                No range selected
+            </div>
+            
+            <div class="admin-modal-footer" style="margin-top: 16px; gap: 8px; justify-content: flex-end;">
+                <button onclick="closeCustomDateModal()" class="ui-btn ui-btn-outline">Cancel</button>
+                <button id="cal-apply-btn" class="ui-btn ui-btn-primary">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar interaction scripts -->
+    <script>
+        function toggleSidebarCollapse() {
+            const shell = document.querySelector('.admin-shell');
+            if (!shell) return;
+            const current = shell.getAttribute('data-sidebar');
+            if (current === 'collapsed') {
+                shell.removeAttribute('data-sidebar');
+                localStorage.setItem('admin-sidebar', 'expanded');
+            } else {
+                shell.setAttribute('data-sidebar', 'collapsed');
+                localStorage.setItem('admin-sidebar', 'collapsed');
+            }
+        }
+
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('admin-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (!sidebar) return;
+            sidebar.classList.toggle('drawer-open');
+            if (overlay) overlay.classList.toggle('active');
+        }
+
+        // Restore sidebar state
+        (function () {
+            const saved = localStorage.getItem('admin-sidebar');
+            if (saved === 'collapsed') {
+                const shell = document.querySelector('.admin-shell');
+                if (shell) shell.setAttribute('data-sidebar', 'collapsed');
+            }
+        })();
+    </script>
+
+    <!-- Scripts -->
+    <script src="js/ui-primitives.js" defer></script>
+    <script src="js/ui-components.js" defer></script>
+    <script src="js/common.js" defer></script>
+    <script src="js/script.js" defer></script>
+    <script src="js/admin.js" defer></script>
+</body>
+
+</html>

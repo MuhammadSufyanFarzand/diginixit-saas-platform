@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        // Instant check for maintenance mode to prevent page flash of content
+        try {
+            if (JSON.parse(localStorage.getItem('settings') || '{}').maintenanceMode) {
+                document.documentElement.style.display = 'none';
+                window.location.replace('maintenance.html');
+            }
+        } catch (e) {}
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-adsense-account" content="ca-pub-3363493243397953">
+    <title>DiginixIT | Authentication Portal</title>
+    <meta name="description" content="Sign in or register for a DiginixIT user account to access premium developer tools, contrast ratio checkers, HTML/CSS minifiers, and custom SaaS dashboards.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://diginixit.com/auth.html">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://diginixit.com/auth.html">
+    <meta property="og:title" content="DiginixIT | Authentication Portal">
+    <meta property="og:description" content="Sign in or register for a DiginixIT user account to access premium developer tools, contrast ratio checkers, HTML/CSS minifiers, and custom SaaS dashboards.">
+    <meta property="og:image" content="https://diginixit.com/images/og-home.jpg">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://diginixit.com/auth.html">
+    <meta name="twitter:title" content="DiginixIT | Authentication Portal">
+    <meta name="twitter:description" content="Sign in or register for a DiginixIT user account to access premium developer tools, contrast ratio checkers, HTML/CSS minifiers, and custom SaaS dashboards.">
+    <meta name="twitter:image" content="https://diginixit.com/images/og-home.jpg">
+
+    <!-- DNS Prefetch & Preconnect -->
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="https://unpkg.com">
+
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <meta name="color-scheme" content="light">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Configuration Inline -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        canvas: '#ffffff',
+                        'canvas-soft': '#fafafa',
+                        'canvas-night': '#1c1c1c',
+                        'canvas-night-soft': '#202020',
+                        ink: '#171717',
+                        'ink-mute': '#707070',
+                        'ink-faint': '#b2b2b2',
+                        primary: '#3ecf8e',
+                        'primary-deep': '#24b47e',
+                        hairline: '#dfdfdf',
+                        'hairline-strong': '#c7c7c7',
+                        'hairline-cool': '#ededed'
+                    },
+                    letterSpacing: { tighter: '-0.04em', tight: '-0.02em' }
+                }
+            }
+        };
+    </script>
+
+    <!-- Core Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" defer></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="bg-canvas text-ink h-screen overflow-hidden">
+
+    <div class="noise"></div>
+
+    <!-- Container -->
+    <div class="flex h-full w-full">
+        <!-- Left Column: Branding (canvas-night theme, hidden on mobile, borderless split) -->
+        <div class="hidden lg:flex lg:w-1/2 bg-canvas-night text-white p-16 flex-col justify-between relative overflow-hidden">
+            <!-- Flat opacity circles background (no borders) -->
+            <div class="absolute inset-0 opacity-15 flex justify-center items-center">
+                <div class="w-[450px] h-[450px] bg-white/5 rounded-full flex items-center justify-center">
+                    <div class="w-72 h-72 bg-white/5 rounded-full"></div>
+                </div>
+            </div>
+
+            <a href="./" class="text-xl font-medium tracking-tighter text-white relative z-10" style="letter-spacing: -0.04em;">DIGINIXIT.</a>
+
+            <div class="space-y-6 relative z-10 max-w-lg">
+                <h1 class="text-5xl font-medium tracking-tight leading-tight" style="letter-spacing: -0.03em;">Create without limits. Analyze with precision.</h1>
+                <p class="text-white/60 text-lg">Join the collective of designers and engineers developing the modern web.</p>
+            </div>
+
+            <div class="relative z-10">
+                <div class="text-xs text-white/40">&copy; 2026 DiginixIT. All rights reserved.</div>
+            </div>
+        </div>
+
+        <!-- Right Column: Authentication Panel (canvas theme, no card frames) -->
+        <div class="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16 relative overflow-y-auto bg-canvas">
+
+            <!-- Floating close button (borderless layout) -->
+            <a href="./" class="absolute top-8 right-8 p-3 hover:bg-canvas-soft rounded-full transition-colors" aria-label="Go home">
+                <i data-lucide="x" class="w-5 h-5 text-ink"></i>
+            </a>
+
+            <div class="w-full max-w-md space-y-8">
+                <!-- Titles -->
+                <div class="text-center md:text-left">
+                    <h2 id="auth-title" class="text-3xl font-medium tracking-tight" style="letter-spacing: -0.02em;">Sign in to DiginixIT</h2>
+                    <p id="auth-subtitle" class="text-ink-mute text-sm mt-2">Enter details below to access your account dashboard.</p>
+                </div>
+
+                <!-- Form (System Inputs & Components) -->
+                <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="ui-stack" style="--ui-gap: var(--space-lg);">
+                    <div id="field-name" class="ui-form-field hidden">
+                        <label for="auth-name" class="ui-label">Full Name <span class="ui-required">*</span></label>
+                        <input type="text" id="auth-name" class="ui-input" placeholder="Sarah Connor">
+                    </div>
+                    <div id="field-email" class="ui-form-field">
+                        <label for="auth-email" class="ui-label">Email Address <span class="ui-required">*</span></label>
+                        <input type="email" id="auth-email" class="ui-input" placeholder="sarah@connor.com" required>
+                    </div>
+                    <div id="field-password" class="ui-form-field">
+                        <div class="flex justify-between items-center mb-1">
+                            <label id="auth-password-label" for="auth-password" class="ui-label">Password <span class="ui-required">*</span></label>
+                            <button type="button" id="btn-forgot-password" class="text-xs text-primary hover:underline hover:text-primary-deep font-semibold">Forgot password?</button>
+                        </div>
+                        <input type="password" id="auth-password" class="ui-input" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required minlength="4">
+                    </div>
+                    <div id="field-confirm-password" class="ui-form-field hidden">
+                        <label for="auth-confirm-password" class="ui-label">Confirm New Password <span class="ui-required">*</span></label>
+                        <input type="password" id="auth-confirm-password" class="ui-input" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" minlength="4">
+                    </div>
+
+                    <button type="submit" id="btn-auth-submit" class="ui-btn ui-btn-primary ui-btn-lg w-full mt-4">Sign In</button>
+                </form>
+
+                <!-- Footer Switch -->
+                <div id="auth-switch-container" class="text-center text-sm text-ink-mute">
+                    <span id="auth-switch-text">Don't have an account?</span>
+                    <button id="btn-auth-switch" class="text-primary hover:text-primary-deep font-semibold hover:underline ml-1">Sign Up</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/ui-primitives.js"></script>
+    <script src="js/ui-components.js"></script>
+    <script src="js/common.js" defer></script>
+    <script src="js/script.js" defer></script>
+    <script>
+        let mode = 'signin';
+
+        const authTitle = document.getElementById('auth-title');
+        const authSubtitle = document.getElementById('auth-subtitle');
+        const authForm = document.getElementById('auth-form');
+        
+        const fieldName = document.getElementById('field-name');
+        const fieldEmail = document.getElementById('field-email');
+        const fieldPassword = document.getElementById('field-password');
+        const fieldConfirmPassword = document.getElementById('field-confirm-password');
+        
+        const inputName = document.getElementById('auth-name');
+        const inputEmail = document.getElementById('auth-email');
+        const inputPassword = document.getElementById('auth-password');
+        const inputConfirmPassword = document.getElementById('auth-confirm-password');
+        
+        const labelPassword = document.getElementById('auth-password-label');
+        const btnForgotPassword = document.getElementById('btn-forgot-password');
+        
+        const btnSubmit = document.getElementById('btn-auth-submit');
+        const switchContainer = document.getElementById('auth-switch-container');
+        const switchText = document.getElementById('auth-switch-text');
+        const btnSwitch = document.getElementById('btn-auth-switch');
+
+        function setMode(newMode) {
+            mode = newMode;
+            
+            // Default reset requirements
+            inputName.required = false;
+            inputEmail.required = false;
+            inputPassword.required = false;
+            inputConfirmPassword.required = false;
+            
+            if (mode !== 'reset' && mode !== 'signin' && mode !== 'signup' && mode !== 'invite') {
+                inputPassword.value = '';
+                inputConfirmPassword.value = '';
+            }
+
+            if (mode === 'signup') {
+                authTitle.innerText = "Create your account";
+                authSubtitle.innerText = "Fill in your details below to get started immediately.";
+                fieldName.classList.remove('hidden');
+                fieldEmail.classList.remove('hidden');
+                fieldPassword.classList.remove('hidden');
+                fieldConfirmPassword.classList.add('hidden');
+                
+                inputName.required = true;
+                inputEmail.required = true;
+                inputPassword.required = true;
+                
+                labelPassword.innerText = "Password";
+                btnForgotPassword.classList.add('hidden');
+                btnSubmit.innerText = "Register & Get Started";
+                switchContainer.classList.remove('hidden');
+                switchText.innerText = "Already have an account?";
+                btnSwitch.innerText = "Sign In";
+            } else if (mode === 'signin') {
+                authTitle.innerText = "Sign in to DiginixIT";
+                authSubtitle.innerText = "Enter details below to access your account dashboard.";
+                fieldName.classList.add('hidden');
+                fieldEmail.classList.remove('hidden');
+                fieldPassword.classList.remove('hidden');
+                fieldConfirmPassword.classList.add('hidden');
+                
+                inputEmail.required = true;
+                inputPassword.required = true;
+                
+                labelPassword.innerText = "Password";
+                btnForgotPassword.classList.remove('hidden');
+                btnSubmit.innerText = "Sign In";
+                switchContainer.classList.remove('hidden');
+                switchText.innerText = "Don't have an account?";
+                btnSwitch.innerText = "Sign Up";
+            } else if (mode === 'forgot') {
+                authTitle.innerText = "Reset your password";
+                authSubtitle.innerText = "Enter your email address and we'll send you a password reset link.";
+                fieldName.classList.add('hidden');
+                fieldEmail.classList.remove('hidden');
+                fieldPassword.classList.add('hidden');
+                fieldConfirmPassword.classList.add('hidden');
+                
+                inputEmail.required = true;
+                
+                btnSubmit.innerText = "Send Reset Link";
+                switchContainer.classList.remove('hidden');
+                switchText.innerText = "Remembered your password?";
+                btnSwitch.innerText = "Sign In";
+            } else if (mode === 'reset') {
+                authTitle.innerText = "Update your password";
+                authSubtitle.innerText = "Create a secure new password for your account.";
+                fieldName.classList.add('hidden');
+                fieldEmail.classList.add('hidden');
+                fieldPassword.classList.remove('hidden');
+                fieldConfirmPassword.classList.remove('hidden');
+                
+                inputPassword.required = true;
+                inputConfirmPassword.required = true;
+                
+                labelPassword.innerText = "New Password";
+                btnForgotPassword.classList.add('hidden');
+                btnSubmit.innerText = "Update Password";
+                switchContainer.classList.add('hidden');
+            } else if (mode === 'magiclink') {
+                authTitle.innerText = "Sign in with Magic Link";
+                authSubtitle.innerText = "Enter your email address and we'll send you a passwordless sign-in link.";
+                fieldName.classList.add('hidden');
+                fieldEmail.classList.remove('hidden');
+                fieldPassword.classList.add('hidden');
+                fieldConfirmPassword.classList.add('hidden');
+                
+                inputEmail.required = true;
+                
+                btnSubmit.innerText = "Send Magic Link";
+                switchContainer.classList.remove('hidden');
+                switchText.innerText = "Want to sign in with password?";
+                btnSwitch.innerText = "Sign In";
+            } else if (mode === 'confirm') {
+                authTitle.innerText = "Resend Email Confirmation";
+                authSubtitle.innerText = "Enter your registered email address to receive a new confirmation link.";
+                fieldName.classList.add('hidden');
+                fieldEmail.classList.remove('hidden');
+                fieldPassword.classList.add('hidden');
+                fieldConfirmPassword.classList.add('hidden');
+                
+                inputEmail.required = true;
+                
+                btnSubmit.innerText = "Resend Confirmation";
+                switchContainer.classList.remove('hidden');
+                switchText.innerText = "Already verified?";
+                btnSwitch.innerText = "Sign In";
+            } else if (mode === 'invite') {
+                authTitle.innerText = "Accept Account Invitation";
+                authSubtitle.innerText = "Set your full name and password to complete your account setup.";
+                fieldName.classList.remove('hidden');
+                fieldEmail.classList.add('hidden');
+                fieldPassword.classList.remove('hidden');
+                fieldConfirmPassword.classList.remove('hidden');
+                
+                inputName.required = true;
+                inputPassword.required = true;
+                inputConfirmPassword.required = true;
+                
+                labelPassword.innerText = "Set Password";
+                btnForgotPassword.classList.add('hidden');
+                btnSubmit.innerText = "Complete Setup & Sign In";
+                switchContainer.classList.add('hidden');
+            }
+        }
+
+        btnSwitch.addEventListener('click', () => {
+            if (mode === 'signin') {
+                setMode('signup');
+            } else {
+                setMode('signin');
+            }
+        });
+
+        btnForgotPassword.addEventListener('click', () => {
+            setMode('forgot');
+        });
+
+        // Initialize mode based on search parameters or hash
+        document.addEventListener('DOMContentLoaded', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const initialMode = params.get('mode');
+            if (['signup', 'signin', 'forgot', 'reset', 'magiclink', 'confirm', 'invite'].includes(initialMode)) {
+                setMode(initialMode);
+            }
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
+            // Wait for backend (Supabase client init)
+            await window.backendReady;
+
+            if (window.useSupabase && window.supabase) {
+                window.supabase.auth.onAuthStateChange((event, session) => {
+                    if (event === 'PASSWORD_RECOVERY') {
+                        setMode('reset');
+                    } else if (event === 'SIGNED_IN' && (mode === 'magiclink' || mode === 'confirm')) {
+                        window.showToast("Successfully authenticated!", "success");
+                        setTimeout(() => { window.location.href = 'profile.html'; }, 1000);
+                    }
+                });
+            }
+        });
+
+        // Form Submit Handler
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            await window.backendReady;
+
+            if (mode === 'signup') {
+                const name = document.getElementById('auth-name').value.trim();
+                const email = document.getElementById('auth-email').value.trim();
+                const password = document.getElementById('auth-password').value;
+
+                const res = await window.apiCall('register', { name, email, password });
+                if (res && res.success === true) {
+                    if (res.requiresVerification) {
+                        window.showToast(`Registration successful! We sent a confirmation link to ${email}. Please check your inbox.`, 'success', 'Verification Required', 6000);
+                        setMode('signin');
+                    } else {
+                        localStorage.setItem('currentUser', JSON.stringify(res.user));
+                        window.showToast(`Account created! Welcome, ${res.user.name}.`, 'success');
+                        setTimeout(() => { window.location.href = 'profile.html'; }, 1000);
+                    }
+                } else {
+                    window.showToast(res && res.error ? res.error : 'Registration failed.', 'error');
+                }
+            } else if (mode === 'signin') {
+                const email = document.getElementById('auth-email').value.trim();
+                const password = document.getElementById('auth-password').value;
+
+                if (email === 'admin@diginix.com') {
+                    window.showToast('Admin accounts must log in via the Secure Admin Panel. Redirecting...', 'info');
+                    setTimeout(() => { window.location.href = 'admin_login.html'; }, 1200);
+                    return;
+                }
+
+                const res = await window.apiCall('login', { email, password });
+                if (res && res.success === true) {
+                    localStorage.setItem('currentUser', JSON.stringify(res.user));
+                    window.showToast(`Welcome back, ${res.user.name}!`, 'success');
+                    setTimeout(() => { window.location.href = 'profile.html'; }, 800);
+                } else {
+                    window.showToast(res && res.error ? res.error : 'Invalid email or password. Please try again.', 'error');
+                }
+            } else if (mode === 'forgot') {
+                const email = document.getElementById('auth-email').value.trim();
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = "Sending...";
+
+                const res = await window.apiCall('reset_password_request', { email });
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = "Send Reset Link";
+
+                if (res && res.success === true) {
+                    window.showToast("A password reset link has been sent to your email address.", "success", "Check Your Inbox");
+                    setMode('signin');
+                } else {
+                    window.showToast(res && res.error ? res.error : 'Failed to send password reset link.', 'error');
+                }
+            } else if (mode === 'reset') {
+                const password = document.getElementById('auth-password').value;
+                const confirmPassword = document.getElementById('auth-confirm-password').value;
+
+                if (password !== confirmPassword) {
+                    window.showToast("Passwords do not match. Please verify.", "warning");
+                    return;
+                }
+
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = "Updating...";
+
+                const res = await window.apiCall('update_forgotten_password', { password });
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = "Update Password";
+
+                if (res && res.success === true) {
+                    window.showToast("Your password has been updated! Please sign in with your new credentials.", "success");
+                    if (window.useSupabase && window.supabase) {
+                        await window.supabase.auth.signOut();
+                    }
+                    localStorage.removeItem('currentUser');
+                    setMode('signin');
+                } else {
+                    window.showToast(res && res.error ? res.error : 'Failed to update password. Please try again.', 'error');
+                }
+            } else if (mode === 'magiclink') {
+                const email = document.getElementById('auth-email').value.trim();
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = "Sending...";
+
+                const res = await window.apiCall('send_magic_link', { email });
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = "Send Magic Link";
+
+                if (res && res.success === true) {
+                    window.showToast(`Magic sign-in link sent to ${email}! Check your inbox.`, 'success', 'Magic Link Sent');
+                    setMode('signin');
+                } else {
+                    window.showToast(res && res.error ? res.error : 'Failed to send Magic Link.', 'error');
+                }
+            } else if (mode === 'confirm') {
+                const email = document.getElementById('auth-email').value.trim();
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = "Sending...";
+
+                const res = await window.apiCall('resend_confirmation', { email });
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = "Resend Confirmation";
+
+                if (res && res.success === true) {
+                    window.showToast(`Confirmation link resent to ${email}! Check your inbox.`, 'success', 'Link Resent');
+                    setMode('signin');
+                } else {
+                    window.showToast(res && res.error ? res.error : 'Failed to resend confirmation email.', 'error');
+                }
+            } else if (mode === 'invite') {
+                const name = document.getElementById('auth-name').value.trim();
+                const password = document.getElementById('auth-password').value;
+                const confirmPassword = document.getElementById('auth-confirm-password').value;
+
+                if (password !== confirmPassword) {
+                    window.showToast("Passwords do not match. Please verify.", "warning");
+                    return;
+                }
+
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = "Completing Setup...";
+
+                const res = await window.apiCall('accept_invite', { name, password });
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = "Complete Setup & Sign In";
+
+                if (res && res.success === true) {
+                    window.showToast("Account setup complete! Welcome to DiginixIT.", "success");
+                    setTimeout(() => { window.location.href = 'profile.html'; }, 1000);
+                } else {
+                    window.showToast(res && res.error ? res.error : 'Failed to complete invitation setup.', 'error');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
