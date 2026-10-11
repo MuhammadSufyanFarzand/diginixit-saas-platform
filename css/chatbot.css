@@ -1,0 +1,510 @@
+/* 
+ * DiginixIT Chatbot Widget - Modular CSS3
+ * Matches brand tokens: #171717 (ink), #3ecf8e (emerald), #fafafa (canvas-soft)
+ */
+
+:root {
+  --dnx-ink: #171717;
+  --dnx-ink-muted: #707070;
+  --dnx-ink-light: #9a9a9a;
+  --dnx-bg: #ffffff;
+  --dnx-bg-soft: #fafafa;
+  --dnx-primary: #3ecf8e;
+  --dnx-primary-hover: #24b47e;
+  --dnx-border: #dfdfdf;
+  --dnx-border-light: #ededed;
+  --dnx-radius: 16px;
+  --dnx-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.22);
+}
+
+/* Base widget reset */
+.dnx-bot-wrap {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--dnx-ink);
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.dnx-bot-wrap *,
+.dnx-bot-wrap *::before,
+.dnx-bot-wrap *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Floating Launcher Button */
+.dnx-launcher-btn,
+.dnx-launcher {
+  position: fixed !important;
+  bottom: clamp(16px, 3vh, 24px) !important;
+  right: clamp(16px, 3vw, 24px) !important;
+  bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
+  right: max(16px, env(safe-area-inset-right, 16px)) !important;
+  z-index: 2147483647 !important;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: var(--dnx-ink);
+  color: #fff;
+  border: 2px solid rgba(62, 207, 142, 0.45);
+  box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: translateZ(0);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.dnx-launcher-btn:hover,
+.dnx-launcher:hover {
+  transform: scale(1.06);
+  background: #222222;
+  box-shadow: 0 14px 32px -4px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(62, 207, 142, 0.4);
+}
+
+.dnx-launcher-btn:active,
+.dnx-launcher:active {
+  transform: scale(0.94);
+}
+
+/* Green status pip on button */
+.dnx-launcher-pip {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dnx-primary);
+  border: 2px solid var(--dnx-ink);
+}
+
+.dnx-launcher-pip--pulse {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dnx-primary);
+  opacity: 0.75;
+  animation: dnxPulseAnim 2.2s infinite ease-out;
+}
+
+@keyframes dnxPulseAnim {
+  0% { transform: scale(1); opacity: 0.8; }
+  60% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Chat Panel Window */
+.dnx-panel,
+.dnx-window {
+  position: fixed !important;
+  bottom: 92px;
+  right: 24px;
+  z-index: 2147483646 !important;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  height: 550px;
+  max-height: calc(100vh - 110px);
+  background: var(--dnx-bg);
+  border-radius: var(--dnx-radius);
+  border: 1px solid var(--dnx-border);
+  box-shadow: var(--dnx-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(14px) scale(0.98);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s;
+}
+
+.dnx-panel.is-active,
+.dnx-window.dnx-open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+/* Header bar */
+.dnx-panel-head {
+  background: var(--dnx-ink);
+  color: #fff;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.dnx-panel-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dnx-panel-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #242424;
+  border: 1px solid rgba(62, 207, 142, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dnx-panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dnx-panel-sub {
+  font-size: 11px;
+  color: var(--dnx-ink-light);
+}
+
+.dnx-online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dnx-primary);
+  display: inline-block;
+}
+
+.dnx-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dnx-head-btn {
+  background: transparent;
+  border: none;
+  color: #a5a5a5;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dnx-head-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* Chat stream */
+.dnx-chat-stream {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--dnx-bg);
+  scroll-behavior: smooth;
+}
+
+.dnx-msg-row {
+  display: flex;
+  gap: 9px;
+  max-width: 88%;
+  animation: dnxFadeMsg 0.2s ease-out;
+}
+
+@keyframes dnxFadeMsg {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dnx-msg-row.is-user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.dnx-msg-row.is-bot {
+  align-self: flex-start;
+}
+
+.dnx-msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--dnx-ink);
+  color: var(--dnx-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dnx-msg-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.dnx-msg-bubble {
+  padding: 11px 13px;
+  border-radius: 13px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.dnx-msg-row.is-user .dnx-msg-bubble {
+  background: var(--dnx-ink);
+  color: #ffffff;
+  border-bottom-right-radius: 3px;
+}
+
+.dnx-msg-row.is-bot .dnx-msg-bubble {
+  background: var(--dnx-bg-soft);
+  color: var(--dnx-ink);
+  border: 1px solid var(--dnx-border-light);
+  border-bottom-left-radius: 3px;
+}
+
+.dnx-msg-bubble p {
+  margin-bottom: 7px;
+}
+.dnx-msg-bubble p:last-child {
+  margin-bottom: 0;
+}
+.dnx-msg-bubble strong {
+  font-weight: 600;
+}
+.dnx-msg-bubble ul {
+  margin: 5px 0 5px 18px;
+}
+.dnx-msg-bubble li {
+  margin-bottom: 3px;
+}
+.dnx-msg-bubble a {
+  color: var(--dnx-primary-hover);
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.dnx-msg-time {
+  font-size: 10px;
+  color: var(--dnx-ink-light);
+  margin-top: 4px;
+}
+.dnx-msg-row.is-user .dnx-msg-time {
+  text-align: right;
+}
+
+/* Typing bubble */
+.dnx-typing-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--dnx-bg-soft);
+  border: 1px solid var(--dnx-border-light);
+  border-radius: 12px;
+}
+
+.dnx-typing-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dnx-primary);
+  animation: dnxBlink 1.4s infinite ease-in-out both;
+}
+.dnx-typing-pip:nth-child(1) { animation-delay: -0.32s; }
+.dnx-typing-pip:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes dnxBlink {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Quick prompt chips */
+.dnx-chips-dock {
+  padding: 8px 14px 10px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: var(--dnx-bg);
+  border-top: 1px solid #f2f2f2;
+  flex-shrink: 0;
+}
+
+.dnx-chip-pill {
+  background: var(--dnx-bg-soft);
+  border: 1px solid var(--dnx-border);
+  color: #262626;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.dnx-chip-pill:hover {
+  background: var(--dnx-ink);
+  color: #ffffff;
+  border-color: var(--dnx-ink);
+}
+
+/* Input form bar */
+.dnx-input-bar {
+  padding: 12px 14px 14px 14px;
+  background: var(--dnx-bg);
+  border-top: 1px solid var(--dnx-border-light);
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.dnx-input-grow {
+  flex: 1;
+}
+
+.dnx-chat-textarea {
+  width: 100%;
+  max-height: 96px;
+  min-height: 38px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  border: 1px solid var(--dnx-border);
+  border-radius: 11px;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  background: var(--dnx-bg-soft);
+  color: var(--dnx-ink);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dnx-chat-textarea:focus {
+  border-color: var(--dnx-primary);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.15);
+}
+
+.dnx-send-action {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--dnx-primary);
+  color: var(--dnx-ink);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dnx-send-action:hover {
+  background: var(--dnx-primary-hover);
+  color: #fff;
+}
+
+.dnx-send-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Suggestion chips dock */
+.dnx-chips-dock,
+.dnx-chips {
+  display: none !important;
+}
+
+/* Responsive tablet adjustments */
+@media (max-width: 1024px) and (min-width: 601px) {
+  .dnx-launcher-btn,
+  .dnx-launcher {
+    bottom: 20px !important;
+    right: 20px !important;
+    width: 52px !important;
+    height: 52px !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  .dnx-panel,
+  .dnx-window {
+    bottom: 82px !important;
+    right: 20px !important;
+    left: auto !important;
+    width: 340px !important;
+    max-width: calc(100vw - 40px) !important;
+    height: 460px !important;
+    max-height: calc(100vh - 100px) !important;
+    border-radius: 14px;
+  }
+}
+
+/* Responsive mobile adjustments (compact popup scaled according to screen size) */
+@media (max-width: 600px) {
+  .dnx-launcher-btn,
+  .dnx-launcher {
+    bottom: 16px !important;
+    right: 16px !important;
+    bottom: max(14px, env(safe-area-inset-bottom, 14px)) !important;
+    right: max(14px, env(safe-area-inset-right, 14px)) !important;
+    width: 48px !important;
+    height: 48px !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    box-shadow: 0 8px 24px -2px rgba(0, 0, 0, 0.45) !important;
+  }
+  .dnx-panel,
+  .dnx-window {
+    bottom: 72px !important;
+    bottom: max(68px, calc(env(safe-area-inset-bottom, 14px) + 54px)) !important;
+    right: 14px !important;
+    left: auto !important;
+    width: calc(100vw - 28px) !important;
+    max-width: 330px !important;
+    height: min(390px, calc(100vh - 86px)) !important;
+    max-height: calc(100vh - 86px) !important;
+    max-height: calc(100dvh - 86px) !important;
+    border-radius: 14px;
+    box-shadow: 0 14px 38px -8px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* Landscape or short viewports */
+@media (max-height: 520px) {
+  .dnx-panel,
+  .dnx-window {
+    bottom: 56px !important;
+    height: calc(100vh - 66px) !important;
+    max-height: 300px !important;
+  }
+  .dnx-chips-dock,
+  .dnx-chips {
+    display: none !important;
+  }
+}
